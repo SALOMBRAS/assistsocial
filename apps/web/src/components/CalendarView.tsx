@@ -16,6 +16,8 @@ import {
   Briefcase,
   RefreshCw,
   Check,
+  Search,
+  X,
 } from 'lucide-react'
 import type { ActivityItem } from './ActivityCard'
 import type { ActivityStatus } from '../types/supabase'
@@ -45,6 +47,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all')
+  const [selectedDayModal, setSelectedDayModal] = useState<Date | null>(null)
+  const [daySearchTerm, setDaySearchTerm] = useState('')
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], [])
   const currentTimestamp = useMemo(() => Date.now(), [])
@@ -71,6 +75,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     const actTime = new Date(act.starts_at).getTime()
     return actTime < currentTimestamp
   }, [currentTimestamp])
+
+  // Atividades do Modal do Dia Filtradas pela Busca
+  const dayModalActivities = useMemo(() => {
+    if (!selectedDayModal) return []
+    const acts = getActivitiesForDay(selectedDayModal)
+    if (!daySearchTerm.trim()) return acts
+    const term = daySearchTerm.toLowerCase().trim()
+    return acts.filter(
+      (act) =>
+        act.title.toLowerCase().includes(term) ||
+        (act.description && act.description.toLowerCase().includes(term)) ||
+        act.category.toLowerCase().includes(term)
+    )
+  }, [selectedDayModal, activities, daySearchTerm])
 
   // Estatísticas de Hoje e Geral
   const stats = useMemo(() => {
@@ -501,8 +519,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     <div
                       key={day.toISOString()}
                       onClick={() => {
-                        setCurrentDate(day)
-                        setViewMode('day')
+                        setSelectedDayModal(day)
+                        setDaySearchTerm('')
                       }}
                       className={`min-h-[90px] md:min-h-[110px] p-2 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer ${
                         isDayToday
@@ -587,7 +605,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         isDayToday ? 'border-[#F04491] bg-[#FFF9FB]' : 'border-[#F6E4EC] bg-white'
                       }`}
                     >
-                      <div className="pb-2 border-b border-[#F6E4EC] mb-2 flex items-center justify-between">
+                      <div 
+                        onClick={() => {
+                          setSelectedDayModal(day)
+                          setDaySearchTerm('')
+                        }}
+                        className="pb-2 border-b border-[#F6E4EC] mb-2 flex items-center justify-between cursor-pointer hover:bg-[#FCE5ED]/30 p-1 rounded-xl transition-colors"
+                        title="Ver todas as atividades deste dia"
+                      >
                         <div>
                           <span className="text-[10px] font-bold uppercase text-[#827780] block">
                             {new Intl.DateTimeFormat('pt-BR', { weekday: 'short' }).format(day)}
@@ -904,6 +929,253 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </div>
           )}
         </>
+      )}
+
+      {/* MODAL / CARD COMPLETO DE ATIVIDADES DO DIA */}
+      {selectedDayModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-2xl bg-white rounded-3xl shadow-[0_20px_50px_rgba(240,68,145,0.18)] border border-[#F6E4EC] overflow-hidden flex flex-col max-h-[85vh] animate-scale-up">
+            
+            {/* Cabeçalho do Card */}
+            <div className="px-6 py-5 border-b border-[#F6E4EC] flex items-center justify-between bg-gradient-to-r from-[#FFF9FB] to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#FCE5ED] text-[#F04491] flex items-center justify-center shrink-0 shadow-sm">
+                  <CalendarIcon size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-[#28232A] capitalize">
+                    {new Intl.DateTimeFormat('pt-BR', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    }).format(selectedDayModal)}
+                  </h3>
+                  <p className="text-xs text-[#827780]">
+                    {getActivitiesForDay(selectedDayModal).length} atividade(s) agendada(s) para este dia
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDayModal(null)
+                    onOpenNewActivity()
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-[#F04491] hover:bg-[#DE3380] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>Nova Atividade</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDayModal(null)}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED] transition-colors cursor-pointer"
+                  title="Fechar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Barra de Pesquisa no Topo do Modal */}
+            <div className="p-4 border-b border-[#F6E4EC] bg-[#FFF9FB]/60">
+              <div className="relative">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#827780]" />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Pesquisar atividades deste dia por nome, descrição ou tipo..."
+                  value={daySearchTerm}
+                  onChange={(e) => setDaySearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2.5 bg-white border border-[#F6E4EC] rounded-2xl text-xs font-semibold text-[#28232A] placeholder:text-[#827780]/60 focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491] shadow-sm transition-all"
+                />
+                {daySearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setDaySearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#827780] hover:text-[#28232A] cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Lista de Atividades do Dia com Scroll */}
+            <div className="p-6 overflow-y-auto space-y-3 flex-1">
+              {getActivitiesForDay(selectedDayModal).length === 0 ? (
+                /* Estado Vazio Quando o Dia NÃO tem Atividades */
+                <div className="py-12 text-center space-y-4">
+                  <div className="w-14 h-14 mx-auto rounded-3xl bg-[#FCE5ED] text-[#F04491] flex items-center justify-center shadow-inner">
+                    <CalendarIcon size={28} />
+                  </div>
+                  <div>
+                    <h4 className="text-base font-bold text-[#28232A]">
+                      Nenhuma atividade agendada para este dia
+                    </h4>
+                    <p className="text-xs text-[#827780] max-w-sm mx-auto mt-1">
+                      Este dia está livre na sua agenda de atendimentos e visitas domiciliares.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDayModal(null)
+                      onOpenNewActivity()
+                    }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#F04491] hover:bg-[#DE3380] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer transform active:scale-95"
+                  >
+                    <Plus size={16} />
+                    <span>Criar Atividade Neste Dia</span>
+                  </button>
+                </div>
+              ) : dayModalActivities.length === 0 ? (
+                /* Estado Quando a Busca não encontra resultados */
+                <div className="py-10 text-center space-y-3">
+                  <Search size={32} className="mx-auto text-[#827780]/40" />
+                  <h4 className="text-sm font-bold text-[#28232A]">
+                    Nenhuma atividade encontrada com "{daySearchTerm}"
+                  </h4>
+                  <p className="text-xs text-[#827780]">
+                    Tente buscar por outro termo ou limpe o campo de pesquisa.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setDaySearchTerm('')}
+                    className="px-3.5 py-1.5 rounded-xl bg-[#FFF9FB] border border-[#F6E4EC] text-xs font-bold text-[#F04491] hover:bg-[#FCE5ED] cursor-pointer"
+                  >
+                    Limpar Filtro
+                  </button>
+                </div>
+              ) : (
+                /* Lista Completa das Atividades (suporta dezenas/centenas de atividades com scroll) */
+                dayModalActivities.map((act) => {
+                  const overdue = isOverdue(act)
+                  const catInfo = getCategoryBadge(act.category)
+                  const timeStr = act.starts_at.includes('T')
+                    ? act.starts_at.split('T')[1].slice(0, 5)
+                    : '08:00'
+
+                  return (
+                    <div
+                      key={act.id}
+                      className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        overdue
+                          ? 'bg-[#FEF1F2]/60 border-[#FCA5A5]'
+                          : act.status === 'completed'
+                          ? 'bg-[#EBF7F1]/40 border-[#A7E2C6]'
+                          : 'bg-[#FFF9FB] border-[#F6E4EC] hover:border-[#F58BB5]/50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        {onToggleComplete && (
+                          <button
+                            type="button"
+                            onClick={() => onToggleComplete(act.id, act.status)}
+                            title={act.status === 'completed' ? 'Marcar como pendente' : 'Marcar como concluída'}
+                            className={`w-6 h-6 rounded-lg flex items-center justify-center border mt-0.5 cursor-pointer shrink-0 transition-all ${
+                              act.status === 'completed'
+                                ? 'bg-[#36A879] border-[#36A879] text-white'
+                                : 'border-[#827780] hover:border-[#F04491] bg-white'
+                            }`}
+                          >
+                            {act.status === 'completed' && <Check size={14} />}
+                          </button>
+                        )}
+
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-xs font-extrabold text-[#28232A] flex items-center gap-1">
+                              <Clock size={12} className="text-[#827780]" />
+                              {timeStr}
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${catInfo.bg}`}>
+                              {catInfo.icon}
+                              <span>{catInfo.label}</span>
+                            </span>
+                            {overdue && (
+                              <span className="text-[10px] font-extrabold bg-[#D93025] text-white px-2 py-0.5 rounded-full">
+                                Atrasada
+                              </span>
+                            )}
+                            {act.status === 'completed' && (
+                              <span className="text-[10px] font-bold bg-[#EBF7F1] text-[#36A879] px-2 py-0.5 rounded-full">
+                                Concluída
+                              </span>
+                            )}
+                          </div>
+
+                          <h4
+                            onClick={() => {
+                              setSelectedDayModal(null)
+                              onSelectActivity(act)
+                            }}
+                            className={`text-sm font-bold cursor-pointer hover:text-[#F04491] truncate ${
+                              act.status === 'completed' ? 'line-through text-[#827780]' : 'text-[#28232A]'
+                            }`}
+                            title={act.title}
+                          >
+                            {act.title}
+                          </h4>
+
+                          {act.description && (
+                            <p className="text-xs text-[#827780] mt-0.5 line-clamp-2">
+                              {act.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                        {onReschedule && act.status !== 'completed' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDayModal(null)
+                              onReschedule(act)
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-white border border-[#F6E4EC] text-xs font-semibold text-[#827780] hover:text-[#F04491] hover:border-[#F04491] transition-colors flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <RefreshCw size={12} />
+                            <span>Reagendar</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDayModal(null)
+                            onSelectActivity(act)
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-[#FCE5ED] text-[#F04491] text-xs font-bold hover:bg-[#FAD5E3] transition-colors cursor-pointer"
+                        >
+                          Ver Detalhes
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="px-6 py-3 border-t border-[#F6E4EC] bg-[#FFF9FB] flex items-center justify-between text-xs text-[#827780]">
+              <span>
+                Exibindo {dayModalActivities.length} de {getActivitiesForDay(selectedDayModal).length} atividade(s)
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedDayModal(null)}
+                className="px-4 py-1.5 rounded-xl bg-white border border-[#F6E4EC] text-[#28232A] font-bold hover:bg-[#FCE5ED]/30 cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
     </div>
   )
