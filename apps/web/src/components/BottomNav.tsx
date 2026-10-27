@@ -1,20 +1,23 @@
 import React from 'react'
-import { LayoutDashboard, CalendarCheck, Calendar, Users, Plus } from 'lucide-react'
+import { LayoutDashboard, CalendarCheck, Calendar, Menu, Plus } from 'lucide-react'
 import type { NavTab } from './Sidebar'
 
 interface BottomNavProps {
   currentTab: NavTab
   onSelectTab: (tab: NavTab) => void
   onOpenNewActivity: () => void
+  onToggleMore?: () => void
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
   currentTab,
   onSelectTab,
   onOpenNewActivity,
+  onToggleMore,
 }) => {
+  const isMoreActive = ['residenciais', 'timeline', 'reports', 'services', 'documents', 'team', 'settings'].includes(currentTab)
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 backdrop-blur-md border-t border-[#F6E4EC] shadow-[0_-4px_20px_rgba(240,68,145,0.06)] px-2 py-1.5 flex items-center justify-around safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 backdrop-blur-md border-t border-[#F6E4EC] shadow-[0_-4px_20px_rgba(240,68,145,0.06)] px-2 pt-1.5 pb-[max(0.6rem,env(safe-area-inset-bottom))] flex items-center justify-around">
       {/* 1. Painel Inicial */}
       <button
         onClick={() => onSelectTab('dashboard')}
@@ -59,15 +62,17 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         <span className="text-[10px] font-bold mt-0.5">Agenda</span>
       </button>
 
-      {/* 4. Compartilhamento / Equipe */}
+      {/* 4. Menu Expandido / Mais */}
       <button
-        onClick={() => onSelectTab('team')}
-        className={`flex flex-col items-center justify-center min-w-[56px] py-1 cursor-pointer transition-colors ${
-          currentTab === 'team' ? 'text-[#F04491]' : 'text-[#827780]'
+        type="button"
+        aria-label="Abrir mais seções"
+        onClick={onToggleMore ? onToggleMore : () => onSelectTab('team')}
+        className={`flex flex-col items-center justify-center min-w-[56px] py-1 cursor-pointer transition-colors min-h-[44px] ${
+          isMoreActive ? 'text-[#F04491]' : 'text-[#827780]'
         }`}
       >
-        <Users size={20} className={currentTab === 'team' ? 'stroke-[2.5]' : ''} />
-        <span className="text-[10px] font-bold mt-0.5">Equipe</span>
+        <Menu size={20} className={isMoreActive ? 'stroke-[2.5]' : ''} />
+        <span className="text-[10px] font-bold mt-0.5">Mais</span>
       </button>
     </nav>
   )
