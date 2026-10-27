@@ -50,18 +50,18 @@ export const StatsCards: React.FC<StatsProps> = ({
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5 mb-6 md:mb-8">
+    <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5 mb-6 md:mb-8">
       {cards.map((card, idx) => (
         <div
           key={idx}
-          className="bg-white p-4 md:p-5 rounded-3xl border border-[#F6E4EC] shadow-[0_2px_12px_rgba(240,68,145,0.03)] hover:shadow-[0_6px_20px_rgba(240,68,145,0.06)] hover:border-[#F58BB5]/50 transition-all group"
+          className="bg-white p-4 md:p-5 rounded-3xl border border-[#F6E4EC] shadow-[0_2px_12px_rgba(240,68,145,0.03)] hover:shadow-[0_6px_20px_rgba(240,68,145,0.06)] hover:border-[#F58BB5]/50 transition-all group min-w-0 flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] md:text-xs font-semibold text-[#827780] tracking-wide">
+          <div className="flex items-start justify-between gap-2 mb-3 min-w-0">
+            <span className="text-xs font-semibold text-[#827780] tracking-wide break-words line-clamp-2">
               {card.title}
             </span>
             <div
-              className={`w-9 h-9 md:w-10 md:h-10 rounded-2xl ${card.bgIcon} flex items-center justify-center transition-transform group-hover:scale-105`}
+              className={`w-9 h-9 md:w-10 md:h-10 rounded-2xl ${card.bgIcon} flex items-center justify-center transition-transform group-hover:scale-105 shrink-0`}
             >
               {card.icon}
             </div>
