@@ -77,7 +77,7 @@ const { data, error } = await supabase.auth.signUp({
 
 ## 4. Fluxo de Recuperação de Senha
 
-Para que a recuperação de senha funcione de ponta a ponta:
+Para que a recuperação de senha funcione de ponta a ponta na aplicação publicada (`https://assistsocial-app.vercel.app`):
 
 1. **Chamada no Frontend:**
    ```typescript
@@ -87,6 +87,7 @@ Para que a recuperação de senha funcione de ponta a ponta:
    ```
 2. **Ao clicar no link do e-mail recebido:**
    O Supabase valida o token e redireciona o usuário para `${window.location.origin}/recuperar-senha#access_token=...&type=recovery`.
+   > **Atenção:** As rotas `${window.location.origin}/**` e `${window.location.origin}/recuperar-senha` devem estar devidamente autorizadas nas **Redirect URLs** do Supabase Dashboard.
 3. **Detecção no Frontend (`AuthContext.tsx`):**
    ```typescript
    supabase.auth.onAuthStateChange(async (event, session) => {
@@ -104,21 +105,44 @@ Para que a recuperação de senha funcione de ponta a ponta:
 
 ---
 
-## 5. Configurações Manuais Necessárias no Painel do Supabase
+## 5. Configurações Remotas de URLs e Produção (Supabase Dashboard)
 
-Para garantir que o fluxo de autenticação e recuperação opere perfeitamente:
+Para garantir que o fluxo de autenticação, convites e recuperação de senha opere perfeitamente na aplicação publicada em produção:
 
 1. **Configuração de URLs no Painel:**
    - Acesse: **Authentication** $\rightarrow$ **URL Configuration**
-   - **Site URL:** `http://localhost:5173` (ou a URL de produção do frontend)
+   - **Site URL:** `https://assistsocial-app.vercel.app`
    - **Redirect URLs (Allow List):**
+     - `https://assistsocial-app.vercel.app/**`
+     - `https://assistsocial-app.vercel.app/recuperar-senha`
+     - `https://assistsocial-app.vercel.app/login`
+     - `https://assistsocial-gestao.vercel.app/**`
+     - `https://assistsocial-br.vercel.app/**`
      - `http://localhost:5173/**`
-     - `http://localhost:5173/recuperar-senha`
-     - `http://localhost:5173/login`
 2. **Template de E-mail de Recuperação de Senha:**
    - Acesse: **Authentication** $\rightarrow$ **Email Templates** $\rightarrow$ **Reset Password**
    - Garanta que o link aponte para `{{ .ConfirmationURL }}`.
-3. **Confirmação de E-mail para Novos Cadastros:**
+3. **Bloqueio de Novos Cadastros Públicos:**
    - Acesse: **Authentication** $\rightarrow$ **Providers** $\rightarrow$ **Email**
-   - Se **Confirm email** estiver ativado, o usuário receberá um link de confirmação antes de poder fazer login.
-   - Para agilizar testes locais, pode-se desativar temporariamente o "Confirm email" ou utilizar o SMTP próprio configurado.
+   - Desmarque **"Allow new users to sign up"** para manter o fluxo estritamente restrito a convites administrativos.
+
+---
+
+## 6. Integração com a Edge Function `admin-invite-user` (Painel Administrativo)
+
+Na rota restrita `/admin/usuarios`, a administradora global pode convidar novas assistentes sociais.
+
+### Contrato de Chamada:
+```typescript
+const { data, error } = await supabase.functions.invoke('admin-invite-user', {
+  body: {
+    email: 'novo.profissional@exemplo.com.br',
+    fullName: 'Nome Completo',
+    phone: '(11) 98765-4321'
+  }
+});
+```
+
+### Comportamento Remoto Auditado:
+- Enquanto a Edge Function não estiver publicada na nuvem (`404 Not Found`), o frontend exibe aviso amigável ao usuário.
+- Após a publicação via CLI com `SUPABASE_ACCESS_TOKEN` (`npx supabase functions deploy admin-invite-user --project-ref mnhzikgphdhohlhfsljz`), o convite emitirá e-mail com papel forçado `social_worker`.
