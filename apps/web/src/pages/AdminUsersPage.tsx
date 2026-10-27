@@ -13,80 +13,26 @@ import {
   Search,
   RefreshCw,
   Sparkles,
+  Key,
+  Copy,
+  Check,
+  X,
+  Lock,
+  MessageCircle,
 } from 'lucide-react'
-import {
-  FunctionsHttpError,
-  FunctionsFetchError,
-  FunctionsRelayError,
-} from '@supabase/supabase-js'
 import { useAuth, type Profile } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import {
+  prepareAdminCreateUserPayload,
+  parseEdgeFunctionError,
+  callAdminCreateUser,
+} from '../services/adminUserService'
 
-/**
- * Extrai e formata o erro da Edge Function de forma segura e compreensível,
- * distinguindo erros HTTP, de transporte de rede e de relay, sem expor tokens ou dados sensíveis.
- */
-async function parseEdgeFunctionError(error: any): Promise<string> {
-  // 1. Erro com resposta HTTP da função ou do gateway (FunctionsHttpError)
-  if (error instanceof FunctionsHttpError || error?.name === 'FunctionsHttpError') {
-    const response = error.context as Response | undefined
-    const status = response?.status
-    let serverMsg = ''
-
-    if (response) {
-      try {
-        const body = await response.clone().json()
-        serverMsg = body?.error || body?.message || body?.msg || ''
-      } catch {
-        try {
-          serverMsg = await response.clone().text()
-        } catch {}
-      }
-    }
-
-    if (status === 404) {
-      return 'A Edge Function "admin-invite-user" está indisponível ou ainda não foi publicada no projeto Supabase (HTTP 404).'
-    }
-
-    if (status === 401 || status === 403) {
-      return `Sessão expirada ou acesso não autorizado (HTTP ${status}). Apenas a administradora global autenticada pode emitir convites.`
-    }
-
-    if (status === 400 || status === 422) {
-      return (
-        serverMsg ||
-        `Dados do convite inválidos. Verifique o formato do e-mail e os campos preenchidos (HTTP ${status}).`
-      )
-    }
-
-    if (status === 409) {
-      return (
-        serverMsg ||
-        'Este endereço de e-mail já possui um convite pendente ou já está cadastrado no sistema (HTTP 409).'
-      )
-    }
-
-    if (status && status >= 500) {
-      return `Erro interno do servidor ao processar o convite (HTTP ${status}). ${serverMsg}`.trim()
-    }
-
-    return serverMsg
-      ? `A Edge Function retornou erro (HTTP ${status}): ${serverMsg}`
-      : `A Edge Function retornou status HTTP ${status}.`
-  }
-
-  // 2. Erro de Relay (falha no roteamento do gateway do Supabase)
-  if (error instanceof FunctionsRelayError || error?.name === 'FunctionsRelayError') {
-    return 'Falha no gateway do Supabase ao repassar a requisição para a Edge Function (FunctionsRelayError).'
-  }
-
-  // 3. Erro de Transporte / Conexão (FunctionsFetchError)
-  if (error instanceof FunctionsFetchError || error?.name === 'FunctionsFetchError') {
-    return 'Falha de comunicação ou conexão de rede com o endpoint da Edge Function (FunctionsFetchError). Verifique sua conexão com a internet.'
-  }
-
-  // 4. Erros genéricos
-  return error?.message || 'Falha inesperada ao comunicar com a Edge Function.'
+interface CreatedCredentials {
+  fullName: string
+  email: string
+  temporaryPassword: string
+  phone?: string | null
 }
 
 export const AdminUsersPage: React.FC = () => {
@@ -97,7 +43,7 @@ export const AdminUsersPage: React.FC = () => {
   const [loadingList, setLoadingList] = useState(true)
   const [search, setSearch] = useState('')
 
-  // Formulário de convite (mantém os nomes visuais para acessibilidade)
+  // Formulário de criação administrativa
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -105,6 +51,11 @@ export const AdminUsersPage: React.FC = () => {
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null)
+
+  // Diálogo de uso único para credenciais geradas
+  const [createdCredentials, setCreatedCredentials] = useState<CreatedCredentials | null>(null)
+  const [copiedPassword, setCopiedPassword] = useState(false)
+  const [copiedMessage, setCopiedMessage] = useState(false)
 
   // Carregar perfis cadastrados do Supabase
   const loadProfiles = async () => {
@@ -131,11 +82,12 @@ export const AdminUsersPage: React.FC = () => {
     loadProfiles()
   }, [])
 
-  // Enviar convite via Edge Function 'admin-invite-user'
-  const handleInviteUser = async (e: React.FormEvent) => {
+  // Criação administrativa via Edge Function canônica 'admin-create-user'
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setInviteError(null)
     setInviteSuccess(null)
+    setCreatedCredentials(null)
 
     if (!fullName.trim() || !email.trim()) {
       setInviteError('Por favor, preencha o nome completo e o e-mail institucional.')
@@ -144,15 +96,14 @@ export const AdminUsersPage: React.FC = () => {
 
     setInviting(true)
     try {
-      // Contrato estrito da Edge Function: { full_name, email, phone }
-      // Não enviamos role do cliente; o papel padrão social_worker é definido de forma segura pelo servidor
-      const { data, error } = await supabase.functions.invoke('admin-invite-user', {
-        body: {
-          full_name: fullName.trim(),
-          email: email.trim().toLowerCase(),
-          phone: phone.trim() || null,
-        },
+      const payload = prepareAdminCreateUserPayload({
+        fullName,
+        email,
+        phone,
       })
+
+      // Invoca a Edge Function canônica com fallback automático
+      const { data, error } = await callAdminCreateUser(supabase, payload)
 
       if (error) {
         const errorMsg = await parseEdgeFunctionError(error)
@@ -160,9 +111,25 @@ export const AdminUsersPage: React.FC = () => {
       } else if (data && data.error) {
         setInviteError(`Erro retornado pela função: ${data.error}`)
       } else {
-        setInviteSuccess(
-          `Convite oficial emitido com sucesso para ${email.trim()}! As instruções de acesso foram enviadas por e-mail.`
-        )
+        // Sucesso real retornado pelo servidor
+        const tempPassword = data?.temporary_password || ''
+
+        if (tempPassword) {
+          setCreatedCredentials({
+            fullName: fullName.trim(),
+            email: email.trim().toLowerCase(),
+            phone: phone.trim() || null,
+            temporaryPassword: tempPassword,
+          })
+          setInviteSuccess(
+            `Conta administrativa criada com sucesso para ${email.trim()}! Copie a senha temporária exibida no diálogo abaixo.`
+          )
+        } else {
+          setInviteSuccess(
+            `Conta administrativa criada com sucesso para ${email.trim()}!`
+          )
+        }
+
         setFullName('')
         setEmail('')
         setPhone('')
@@ -174,6 +141,39 @@ export const AdminUsersPage: React.FC = () => {
     } finally {
       setInviting(false)
     }
+  }
+
+  // Copiar senha temporária de uso único
+  const handleCopyPassword = async () => {
+    if (!createdCredentials?.temporaryPassword) return
+    try {
+      await navigator.clipboard.writeText(createdCredentials.temporaryPassword)
+      setCopiedPassword(true)
+      setTimeout(() => setCopiedPassword(false), 2500)
+    } catch {
+      setCopiedPassword(true)
+    }
+  }
+
+  // Copiar mensagem completa pronta para canal institucional
+  const handleCopyMessage = async () => {
+    if (!createdCredentials) return
+    const message = `Olá ${createdCredentials.fullName},\n\nSeu acesso profissional ao AssistSocial foi criado com sucesso!\n\n• E-mail institucional: ${createdCredentials.email}\n• Senha temporária: ${createdCredentials.temporaryPassword}\n• Endereço de acesso: https://assistsocial-app.vercel.app/login\n\nNo seu primeiro login, o sistema exigirá a definição de uma nova senha pessoal definitiva.`
+
+    try {
+      await navigator.clipboard.writeText(message)
+      setCopiedMessage(true)
+      setTimeout(() => setCopiedMessage(false), 2500)
+    } catch {
+      setCopiedMessage(true)
+    }
+  }
+
+  // Fechar diálogo de uso único e expurgar senha da memória da interface
+  const handleCloseCredentialsModal = () => {
+    setCreatedCredentials(null)
+    setCopiedPassword(false)
+    setCopiedMessage(false)
   }
 
   // Filtragem da lista
@@ -234,7 +234,7 @@ export const AdminUsersPage: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-[#827780] font-medium hidden sm:block">
-                Gestão restrita de acessos, convites e controle de papéis institucionais
+                Cadastro administrativo direto sem e-mail e controle de credenciais
               </p>
             </div>
           </div>
@@ -265,18 +265,18 @@ export const AdminUsersPage: React.FC = () => {
             </div>
             <div>
               <h2 className="text-lg font-black text-[#28232A]">
-                Controle de Acessos Institucionais
+                Criação Administrativa de Contas Institucionais
               </h2>
               <p className="text-xs sm:text-sm text-[#827780] max-w-2xl mt-0.5 leading-relaxed">
-                Por exigência de sigilo e segurança (LGPD e Código de Ética do Assistente Social), o cadastro público foi desativado. Novos profissionais só ingressam no sistema através deste formulário oficial de convite.
+                Por exigência de sigilo e segurança (LGPD e Código de Ética do Assistente Social), o cadastro público foi desativado. Novos profissionais são criados diretamente pela administradora global com senha temporária criptográfica e exigência de troca obrigatória no primeiro acesso.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Grid: Formulário de Convite + Lista de Profissionais */}
+        {/* Grid: Formulário de Cadastro + Lista de Profissionais */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Card: Convidar Novo Profissional (Edge Function) */}
+          {/* Card: Cadastrar Novo Profissional (Edge Function) */}
           <div className="lg:col-span-5 bg-white rounded-3xl border border-[#F6E4EC] p-6 shadow-[0_6px_25px_rgba(240,68,145,0.04)]">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-10 h-10 rounded-2xl bg-[#FCE5ED] text-[#F04491] flex items-center justify-center">
@@ -284,10 +284,10 @@ export const AdminUsersPage: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-base font-extrabold text-[#28232A]">
-                  Convidar Novo Profissional
+                  Cadastrar Novo Profissional
                 </h3>
                 <span className="text-xs text-[#827780]">
-                  Via Edge Function <code className="text-[#F04491] font-mono">admin-invite-user</code>
+                  Via Edge Function <code className="text-[#F04491] font-mono">admin-create-user</code>
                 </span>
               </div>
             </div>
@@ -299,14 +299,14 @@ export const AdminUsersPage: React.FC = () => {
               </div>
             )}
 
-            {inviteSuccess && (
+            {inviteSuccess && !createdCredentials && (
               <div className="mb-4 p-3.5 rounded-2xl bg-[#EBF7F1] border border-[#36A879]/20 flex items-start gap-2.5 text-xs text-[#36A879] font-semibold">
                 <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
                 <span>{inviteSuccess}</span>
               </div>
             )}
 
-            <form onSubmit={handleInviteUser} className="space-y-4">
+            <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#28232A] mb-1.5 uppercase tracking-wider">
                   Nome Completo *
@@ -348,8 +348,8 @@ export const AdminUsersPage: React.FC = () => {
                 <div className="relative">
                   <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#827780]" />
                   <input
-                    type="tel"
-                    placeholder="(11) 99999-9999"
+                    type="text"
+                    placeholder="(11) 98765-4321"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] placeholder:text-[#827780]/60 focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491] transition-all"
@@ -357,127 +357,224 @@ export const AdminUsersPage: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#28232A] mb-1.5 uppercase tracking-wider">
-                  Papel de Acesso
-                </label>
-                <div className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] flex items-center justify-between">
-                  <span className="font-semibold text-[#28232A]">Assistente Social</span>
-                  <span className="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full font-bold bg-[#EBF7F1] text-[#36A879] border border-[#36A879]/20">
-                    Padrão do Servidor
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#827780] mt-1">
-                  Por segurança e conformidade, novos convites recebem automaticamente o papel institucional de Assistente Social definido pelo servidor.
-                </p>
+              <div className="p-3 bg-[#FFF9FB] rounded-2xl border border-[#F6E4EC] text-xs text-[#827780] space-y-1 leading-relaxed">
+                <span className="font-bold text-[#28232A] block">Protocolo de Criação Direta:</span>
+                <p>• Papel fixado no servidor: <strong className="text-[#36A879]">Assistente Social (social_worker)</strong>.</p>
+                <p>• E-mail confirmado automaticamente sem envio de mensagens externas.</p>
+                <p>• Uma senha temporária forte será gerada e exibida na tela seguinte.</p>
               </div>
 
               <button
                 type="submit"
                 disabled={inviting}
-                className="w-full mt-3 py-3 px-4 rounded-2xl bg-[#F04491] hover:bg-[#DE3380] text-white text-sm font-bold shadow-[0_4px_16px_rgba(240,68,145,0.3)] hover:shadow-[0_6px_22px_rgba(240,68,145,0.4)] disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer transform active:scale-98"
+                className="w-full py-3 px-4 rounded-2xl font-bold text-white text-sm bg-gradient-to-r from-[#F04491] to-[#DE3380] hover:from-[#DE3380] hover:to-[#C2256D] active:scale-[0.99] transition-all shadow-[0_4px_16px_rgba(240,68,145,0.35)] disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {inviting ? (
                   <>
-                    <RefreshCw size={16} className="animate-spin" />
-                    <span>Conectando à Edge Function...</span>
+                    <RefreshCw size={18} className="animate-spin" />
+                    <span>Processando Criação no Servidor...</span>
                   </>
                 ) : (
                   <>
-                    <UserPlus size={16} />
-                    <span>Enviar Convite Oficial</span>
+                    <UserPlus size={18} />
+                    <span>Criar Conta e Gerar Senha Temporária</span>
                   </>
                 )}
               </button>
             </form>
           </div>
 
-          {/* Card: Lista de Profissionais Cadastrados (public.profiles) */}
-          <div className="lg:col-span-7 bg-white rounded-3xl border border-[#F6E4EC] p-6 shadow-[0_6px_25px_rgba(240,68,145,0.04)]">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#FCE5ED] text-[#F04491] flex items-center justify-center">
-                  <Users size={20} />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-[#28232A]">
-                    Profissionais Registrados
-                  </h3>
-                  <span className="text-xs text-[#827780]">
-                    Total: {profiles.length} conta(s) no Supabase
-                  </span>
-                </div>
+          {/* Lista de Profissionais Cadastrados */}
+          <div className="lg:col-span-7 bg-white rounded-3xl border border-[#F6E4EC] p-6 shadow-[0_6px_25px_rgba(240,68,145,0.04)] space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-extrabold text-[#28232A] flex items-center gap-2">
+                  <Users size={18} className="text-[#F04491]" />
+                  <span>Profissionais Cadastrados</span>
+                </h3>
+                <p className="text-xs text-[#827780]">
+                  {profiles.length} contas registradas na tabela <code className="font-mono text-[#F04491]">public.profiles</code>
+                </p>
               </div>
 
               <button
                 onClick={loadProfiles}
-                title="Atualizar Lista"
-                className="p-2 rounded-xl text-[#827780] hover:text-[#28232A] hover:bg-[#FFF9FB] border border-[#F6E4EC] transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer"
+                disabled={loadingList}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#F6E4EC] text-xs font-semibold text-[#827780] hover:text-[#28232A] hover:bg-[#FFF9FB] transition-all cursor-pointer self-start sm:self-auto"
+                title="Recarregar lista"
               >
-                <RefreshCw size={14} className={loadingList ? 'animate-spin' : ''} />
+                <RefreshCw size={13} className={loadingList ? 'animate-spin' : ''} />
                 <span>Atualizar</span>
               </button>
             </div>
 
-            {/* Barra de Pesquisa */}
-            <div className="relative mb-5">
+            {/* Busca */}
+            <div className="relative">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#827780]" />
               <input
                 type="text"
-                placeholder="Buscar por nome, e-mail ou papel..."
+                placeholder="Filtrar por nome, e-mail ou papel..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] placeholder:text-[#827780]/60 focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491] transition-all"
+                className="w-full pl-10 pr-4 py-2 text-xs bg-[#FFF9FB] border border-[#F6E4EC] rounded-xl text-[#28232A] placeholder:text-[#827780]/60 focus:outline-none focus:border-[#F04491] transition-all"
               />
             </div>
 
-            {/* Lista de Registros */}
-            {loadingList ? (
-              <div className="py-12 flex flex-col items-center justify-center text-[#827780]">
-                <RefreshCw size={24} className="animate-spin text-[#F04491] mb-2" />
-                <span className="text-xs font-semibold">Carregando lista de profissionais...</span>
-              </div>
-            ) : filteredProfiles.length === 0 ? (
-              <div className="py-12 text-center text-[#827780] border border-dashed border-[#F6E4EC] rounded-2xl">
-                <Users size={32} className="mx-auto text-[#827780]/40 mb-2" />
-                <p className="text-xs font-semibold">Nenhum profissional encontrado.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-[#F6E4EC]/60 overflow-hidden">
-                {filteredProfiles.map((p) => (
-                  <div
-                    key={p.id}
-                    className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#FFF9FB] rounded-xl px-2 transition-colors"
-                  >
+            {/* Lista com scroll */}
+            <div className="divide-y divide-[#F6E4EC] max-h-[480px] overflow-y-auto no-scrollbar">
+              {loadingList ? (
+                <div className="py-12 text-center text-xs text-[#827780]">
+                  Carregando perfis do Supabase...
+                </div>
+              ) : filteredProfiles.length === 0 ? (
+                <div className="py-12 text-center text-xs text-[#827780]">
+                  Nenhum profissional localizado com os critérios da busca.
+                </div>
+              ) : (
+                filteredProfiles.map((p) => (
+                  <div key={p.id} className="py-3.5 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-2xl bg-[#FCE5ED] text-[#F04491] font-bold flex items-center justify-center text-xs shrink-0 ring-1 ring-[#F04491]/20">
+                      <div className="w-10 h-10 rounded-2xl bg-[#FCE5ED] text-[#F04491] font-black text-xs flex items-center justify-center shrink-0">
                         {(p.full_name || 'AS').slice(0, 2).toUpperCase()}
                       </div>
-                      <div className="truncate">
-                        <span className="text-xs sm:text-sm font-bold text-[#28232A] block truncate">
-                          {p.full_name || 'Sem nome informado'}
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-[#28232A] block truncate">
+                          {p.full_name || 'Profissional'}
                         </span>
-                        <span className="text-xs text-[#827780] block truncate">
-                          {p.email || 'Sem e-mail'}
+                        <span className="text-[11px] text-[#827780] block truncate">
+                          {p.email || 'E-mail não informado'}
+                          {p.phone ? ` • ${p.phone}` : ''}
                         </span>
-                        {p.phone && (
-                          <span className="text-[11px] text-[#827780]/80 block">
-                            WhatsApp: {p.phone}
-                          </span>
-                        )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 self-start sm:self-center">
+                    <div className="shrink-0 flex items-center gap-2">
+                      {(p as any).must_change_password && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FEF8EC] text-[#E59B28] border border-[#FED7AA]">
+                          Primeiro Acesso
+                        </span>
+                      )}
                       {getRoleBadge(p.role)}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </div>
         </div>
       </main>
+
+      {/* DIÁLOGO DE USO ÚNICO PARA EXIBIÇÃO DA SENHA TEMPORÁRIA */}
+      {createdCredentials && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full border border-[#F6E4EC] shadow-2xl space-y-5 animate-scale-up">
+            {/* Topo do Modal */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#F6E4EC]">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2.5 rounded-2xl bg-[#FCE5ED] text-[#F04491]">
+                  <Key size={22} />
+                </span>
+                <div>
+                  <h3 className="text-base md:text-lg font-black text-[#28232A]">
+                    Credenciais Temporárias de Acesso
+                  </h3>
+                  <p className="text-xs text-[#827780]">
+                    Exibição única gerada com segurança pelo servidor
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleCloseCredentialsModal}
+                className="p-1 rounded-xl text-[#827780] hover:text-[#28232A] cursor-pointer"
+                title="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Dados do Profissional */}
+            <div className="p-4 rounded-2xl bg-[#FFF9FB] border border-[#F6E4EC] space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-[#827780] font-bold uppercase text-[10px]">Profissional:</span>
+                <span className="font-bold text-[#28232A]">{createdCredentials.fullName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#827780] font-bold uppercase text-[10px]">E-mail de Login:</span>
+                <span className="font-mono font-semibold text-[#28232A]">{createdCredentials.email}</span>
+              </div>
+            </div>
+
+            {/* Senha Temporária com Botão Copiar */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-[#827780] uppercase tracking-wider">
+                Senha Temporária de Primeiro Acesso
+              </label>
+              <div className="p-3.5 rounded-2xl bg-white border-2 border-[#F04491]/30 flex items-center justify-between gap-3 shadow-sm">
+                <span className="font-mono text-base font-black tracking-widest text-[#28232A] select-all">
+                  {createdCredentials.temporaryPassword}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyPassword}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    copiedPassword
+                      ? 'bg-[#36A879] text-white shadow-sm'
+                      : 'bg-[#FCE5ED] text-[#F04491] hover:bg-[#FAD5E3]'
+                  }`}
+                >
+                  {copiedPassword ? (
+                    <>
+                      <Check size={14} />
+                      <span>Copiada!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} />
+                      <span>Copiar Senha</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Instruções para Canal Seguro */}
+            <div className="p-3.5 rounded-2xl bg-[#EDF2FF] border border-[#BFDBFE] text-xs text-[#1E3A8A] space-y-1.5 leading-relaxed">
+              <div className="flex items-center gap-1.5 font-bold">
+                <Lock size={14} className="text-[#4B7BFF]" />
+                <span>Instrução de Segurança Institucional:</span>
+              </div>
+              <p className="text-[11px] text-[#3B82F6]">
+                Entregue estas credenciais por um canal institucional seguro (WhatsApp verificado, presencialmente ou memorando interno). A profissional será <strong>obrigada a redefinir uma nova senha definitiva</strong> no primeiro acesso antes de entrar no painel.
+              </p>
+            </div>
+
+            {/* Alerta de Não Retenção */}
+            <p className="text-[11px] text-[#827780] italic text-center">
+              ⚠️ Esta senha temporária não será exibida novamente e não é mantida em texto puro pelo sistema.
+            </p>
+
+            {/* Ações do Modal */}
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={handleCopyMessage}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-2xl bg-[#FFF9FB] border border-[#F6E4EC] text-xs font-bold text-[#28232A] hover:text-[#F04491] hover:border-[#F04491] transition-all cursor-pointer"
+              >
+                <MessageCircle size={15} className="text-[#36A879]" />
+                <span>{copiedMessage ? 'Mensagem Copiada!' : 'Copiar Texto para WhatsApp'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCloseCredentialsModal}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-[#28232A] hover:bg-black text-white text-xs font-bold transition-all cursor-pointer shadow-sm text-center"
+              >
+                Concluir e Fechar Diálogo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
