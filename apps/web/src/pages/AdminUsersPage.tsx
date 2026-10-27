@@ -21,6 +21,7 @@ import {
   MessageCircle,
 } from 'lucide-react'
 import { useAuth, type Profile } from '../contexts/AuthContext'
+import { useModalA11y } from '../hooks/useModalA11y'
 import { supabase } from '../lib/supabaseClient'
 import {
   prepareAdminCreateUserPayload,
@@ -170,6 +171,13 @@ export const AdminUsersPage: React.FC = () => {
   }
 
   // Fechar diálogo de uso único e expurgar senha da memória da interface
+  useModalA11y({
+    isOpen: Boolean(createdCredentials),
+    onClose: () => handleCloseCredentialsModal(),
+    closeOnEscape: true,
+    preventScroll: true,
+  })
+
   const handleCloseCredentialsModal = () => {
     setCreatedCredentials(null)
     setCopiedPassword(false)
@@ -466,8 +474,14 @@ export const AdminUsersPage: React.FC = () => {
 
       {/* DIÁLOGO DE USO ÚNICO PARA EXIBIÇÃO DA SENHA TEMPORÁRIA */}
       {createdCredentials && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full border border-[#F6E4EC] shadow-2xl space-y-5 animate-scale-up">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="credentials-modal-title"
+          onClick={(e) => { if (e.target === e.currentTarget) handleCloseCredentialsModal() }}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+        >
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full border border-[#F6E4EC] shadow-2xl space-y-5 animate-scale-up max-h-[90dvh] overflow-y-auto">
             {/* Topo do Modal */}
             <div className="flex items-center justify-between pb-3 border-b border-[#F6E4EC]">
               <div className="flex items-center gap-2.5">
@@ -475,7 +489,7 @@ export const AdminUsersPage: React.FC = () => {
                   <Key size={22} />
                 </span>
                 <div>
-                  <h3 className="text-base md:text-lg font-black text-[#28232A]">
+                  <h3 id="credentials-modal-title" className="text-base md:text-lg font-black text-[#28232A]">
                     Credenciais Temporárias de Acesso
                   </h3>
                   <p className="text-xs text-[#827780]">
@@ -484,8 +498,10 @@ export const AdminUsersPage: React.FC = () => {
                 </div>
               </div>
               <button
+                type="button"
+                aria-label="Fechar credenciais"
                 onClick={handleCloseCredentialsModal}
-                className="p-1 rounded-xl text-[#827780] hover:text-[#28232A] cursor-pointer"
+                className="w-10 h-10 rounded-full flex items-center justify-center text-[#827780] hover:text-[#28232A] hover:bg-[#FCE5ED] cursor-pointer transition-colors"
                 title="Fechar"
               >
                 <X size={18} />

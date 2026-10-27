@@ -9,6 +9,7 @@ import {
   Square,
 } from 'lucide-react'
 import type { DocumentItem } from './DocumentsView'
+import { useModalA11y } from '../hooks/useModalA11y'
 
 interface DocumentReviewAssistantProps {
   isOpen: boolean
@@ -75,6 +76,13 @@ export const DocumentReviewAssistant: React.FC<DocumentReviewAssistantProps> = (
   const [isSaving, setIsSaving] = useState<boolean>(false)
   const [humanConfirmationAgreed, setHumanConfirmationAgreed] = useState<boolean>(false)
 
+  useModalA11y({
+    isOpen,
+    onClose,
+    closeOnEscape: true,
+    preventScroll: true,
+  })
+
   useEffect(() => {
     if (document) {
       const isAlreadyReviewed = document.ai_analysis_status === 'completed' || document.ai_analysis_status === 'reviewed'
@@ -115,8 +123,8 @@ export const DocumentReviewAssistant: React.FC<DocumentReviewAssistantProps> = (
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full border border-[#F6E4EC] shadow-2xl space-y-5 animate-scale-up max-h-[92vh] overflow-y-auto">
+    <div onClick={(e) => { if (e.target === e.currentTarget) onClose() }} className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="review-modal-title">
+      <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full border border-[#F6E4EC] shadow-2xl space-y-5 animate-scale-up max-h-[90dvh] overflow-y-auto">
         {/* CABEÇALHO DO MODAL */}
         <div className="flex items-center justify-between pb-3 border-b border-[#F6E4EC]">
           <div className="flex items-center gap-2.5">
@@ -124,7 +132,7 @@ export const DocumentReviewAssistant: React.FC<DocumentReviewAssistantProps> = (
               <FileCheck size={22} />
             </span>
             <div>
-              <h3 className="text-base md:text-lg font-black text-[#28232A]">
+              <h3 id="review-modal-title" className="text-base md:text-lg font-black text-[#28232A]">
                 Revisão Assistida de Conformidade Documental
               </h3>
               <p className="text-xs text-[#827780]">
@@ -133,8 +141,10 @@ export const DocumentReviewAssistant: React.FC<DocumentReviewAssistantProps> = (
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-1 rounded-xl text-[#827780] hover:text-[#28232A] cursor-pointer"
+            aria-label="Fechar"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[#827780] hover:text-[#28232A] hover:bg-[#FCE5ED] cursor-pointer transition-colors"
           >
             <X size={18} />
           </button>

@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 import type { ActivityItem } from './ActivityCard'
 import type { ActivityCategory, ActivityStatus } from '../types/supabase'
 import { ActivityAttachmentsSection } from './ActivityAttachmentsSection'
+import { useModalA11y } from '../hooks/useModalA11y'
 
 interface ActivityModalProps {
   isOpen: boolean
@@ -50,6 +51,13 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   })
   const [description, setDescription] = useState(editingActivity?.description || '')
 
+  useModalA11y({
+    isOpen,
+    onClose,
+    closeOnEscape: true,
+    preventScroll: true,
+  })
+
   if (!isOpen) return null
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -72,12 +80,20 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-lg bg-white rounded-3xl shadow-[0_20px_50px_rgba(240,68,145,0.15)] border border-[#F6E4EC] overflow-hidden flex flex-col max-h-[90vh]">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="activity-modal-title"
+    >
+      <div className="w-full max-w-lg bg-white rounded-3xl shadow-[0_20px_50px_rgba(240,68,145,0.15)] border border-[#F6E4EC] overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Modal Header */}
-        <div className="px-6 py-5 border-b border-[#F6E4EC] flex items-center justify-between bg-gradient-to-r from-[#FFF9FB] to-white">
+        <div className="px-6 py-4 sm:py-5 border-b border-[#F6E4EC] flex items-center justify-between bg-gradient-to-r from-[#FFF9FB] to-white shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-[#28232A]">
+            <h2 id="activity-modal-title" className="text-lg font-bold text-[#28232A]">
               {editingActivity ? 'Editar Atividade' : 'Nova Atividade Social'}
             </h2>
             <p className="text-xs text-[#827780] font-medium">
@@ -85,15 +101,17 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED] transition-colors cursor-pointer"
+            aria-label="Fechar"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED] transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Modal Body / Form */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
           {/* Título */}
           <div>
             <label className="block text-xs font-bold text-[#28232A] mb-1.5 uppercase tracking-wider">
@@ -149,37 +167,34 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
           {/* Data e Horários */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-bold text-[#28232A] mb-1.5 uppercase tracking-wider">
-                Data
-              </label>
+              <label className="block text-xs font-bold text-[#28232A] mb-1 uppercase tracking-wider">Data</label>
               <input
                 type="date"
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3 py-2 text-xs md:text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491]"
+                className="w-full px-3 py-2 text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491]"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-[#28232A] mb-1.5 uppercase tracking-wider">
-                Início
-              </label>
+              <label className="block text-xs font-bold text-[#28232A] mb-1 uppercase tracking-wider">Horário Início</label>
               <input
                 type="time"
+                required
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-3 py-2 text-xs md:text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491]"
+                className="w-full px-3 py-2 text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491]"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-[#28232A] mb-1.5 uppercase tracking-wider">
-                Término
-              </label>
+              <label className="block text-xs font-bold text-[#28232A] mb-1 uppercase tracking-wider">Horário Término</label>
               <input
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-3 py-2 text-xs md:text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491]"
+                className="w-full px-3 py-2 text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491]"
               />
             </div>
           </div>
@@ -202,17 +217,17 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
           <ActivityAttachmentsSection activityId={editingActivity?.id} />
 
           {/* Modal Footer Buttons */}
-          <div className="pt-3 border-t border-[#F6E4EC] flex items-center justify-end gap-3">
+          <div className="pt-3 border-t border-[#F6E4EC] flex items-center justify-end gap-3 sticky bottom-0 bg-white py-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-2xl text-xs md:text-sm font-semibold text-[#827780] hover:bg-[#FFF9FB] hover:text-[#28232A] transition-colors cursor-pointer"
+              className="px-4 py-2.5 min-h-[44px] rounded-2xl text-xs md:text-sm font-semibold text-[#827780] hover:bg-[#FFF9FB] hover:text-[#28232A] transition-colors cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-2xl bg-[#F04491] hover:bg-[#DE3380] text-white text-xs md:text-sm font-bold shadow-[0_4px_14px_rgba(240,68,145,0.3)] hover:shadow-[0_6px_20px_rgba(240,68,145,0.4)] transition-all cursor-pointer transform active:scale-95"
+              className="px-6 py-2.5 min-h-[44px] rounded-2xl bg-[#F04491] hover:bg-[#DE3380] text-white text-xs md:text-sm font-bold shadow-[0_4px_14px_rgba(240,68,145,0.3)] hover:shadow-[0_6px_20px_rgba(240,68,145,0.4)] transition-all cursor-pointer transform active:scale-95"
             >
               {editingActivity ? 'Salvar Alterações' : 'Criar Atividade'}
             </button>

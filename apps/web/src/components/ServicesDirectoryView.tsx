@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { useModalA11y } from '../hooks/useModalA11y'
 import {
   Building2,
   MapPin,
@@ -123,8 +124,22 @@ export const ServicesDirectoryView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [selectedTargetPublic, setSelectedTargetPublic] = useState<string>('all')
   const [accessibilityOnly, setAccessibilityOnly] = useState<boolean>(false)
-  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false)
   const [selectedService, setSelectedService] = useState<SocialServiceSpec | null>(null)
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false)
+
+  useModalA11y({
+    isOpen: Boolean(selectedService),
+    onClose: () => setSelectedService(null),
+    closeOnEscape: true,
+    preventScroll: true,
+  })
+
+  useModalA11y({
+    isOpen: isProposalModalOpen,
+    onClose: () => setIsProposalModalOpen(false),
+    closeOnEscape: true,
+    preventScroll: true,
+  })
 
   // Categorias Helpers
   const getCategoryInfo = (cat: string) => {
@@ -424,16 +439,24 @@ export const ServicesDirectoryView: React.FC = () => {
 
       {/* 5. MODAL DE FICHA TÉCNICA HSDS */}
       {selectedService && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-xl w-full border border-[#F6E4EC] shadow-2xl space-y-4 animate-scale-up max-h-[90vh] overflow-y-auto">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="service-detail-modal-title"
+          onClick={(e) => { if (e.target === e.currentTarget) setSelectedService(null) }}
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-xl w-full border border-[#F6E4EC] shadow-2xl space-y-4 animate-scale-up max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#F6E4EC]">
               <div className="flex items-center gap-2">
                 <Building2 size={20} className="text-[#F04491]" />
-                <h3 className="text-base font-black text-[#28232A]">Ficha de Serviço — Especificação HSDS</h3>
+                <h3 id="service-detail-modal-title" className="text-base font-black text-[#28232A]">Ficha de Serviço — Especificação HSDS</h3>
               </div>
               <button
+                type="button"
+                aria-label="Fechar ficha"
                 onClick={() => setSelectedService(null)}
-                className="p-1 rounded-xl text-[#827780] hover:text-[#28232A] cursor-pointer"
+                className="w-10 h-10 rounded-full flex items-center justify-center text-[#827780] hover:text-[#28232A] hover:bg-[#FCE5ED] cursor-pointer transition-colors"
               >
                 <X size={18} />
               </button>
@@ -500,16 +523,24 @@ export const ServicesDirectoryView: React.FC = () => {
 
       {/* 6. MODAL DE PROPOSTA DE CADASTRO HSDS (DEMONSTRADOR DE CONTRATO) */}
       {isProposalModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full border border-[#F6E4EC] shadow-2xl space-y-4 animate-scale-up">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="service-proposal-modal-title"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsProposalModalOpen(false) }}
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full border border-[#F6E4EC] shadow-2xl space-y-4 animate-scale-up max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#F6E4EC]">
               <div className="flex items-center gap-2">
                 <Plus size={20} className="text-[#F04491]" />
-                <h3 className="text-base font-black text-[#28232A]">Proposta de Novo Equipamento Socioassistencial</h3>
+                <h3 id="service-proposal-modal-title" className="text-base font-black text-[#28232A]">Proposta de Novo Equipamento Socioassistencial</h3>
               </div>
               <button
+                type="button"
+                aria-label="Fechar proposta"
                 onClick={() => setIsProposalModalOpen(false)}
-                className="p-1 rounded-xl text-[#827780] hover:text-[#28232A] cursor-pointer"
+                className="w-10 h-10 rounded-full flex items-center justify-center text-[#827780] hover:text-[#28232A] hover:bg-[#FCE5ED] cursor-pointer transition-colors"
               >
                 <X size={18} />
               </button>
