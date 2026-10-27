@@ -1,7 +1,7 @@
-# Relatório de Implementação: Autenticação, Área Administrativa e Integração Supabase — AssistSocial
+# Relatório de Implementação e Auditoria de Produção — AssistSocial
 
 > **Conforme diretrizes oficiais de [jana 1.txt](file:///C:/Users/Londres31/Downloads/prompt/jana%201.txt)**  
-> **Status:** Concluído com Sucesso  
+> **Status:** Concluído e Auditado em Produção  
 > **Data:** 27 de Outubro de 2026  
 > **Módulo:** `apps/web` (Frontend - Terminal 1)
 
@@ -17,7 +17,7 @@
 - [`src/pages/LoginPage.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/pages/LoginPage.tsx): Tela de login com validações, botão para mostrar/ocultar senha, "Lembrar de mim", mensagens amigáveis em português e link para solicitação de acesso via WhatsApp.
 - [`src/pages/RegisterPage.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/pages/RegisterPage.tsx): Painel oficial de **solicitação de acesso via WhatsApp**. O cadastro público direto foi desativado; a página gera a mensagem estruturada com nome, órgão, município e contatos institucionais para validação pela administradora global.
 - [`src/pages/ResetPasswordPage.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/pages/ResetPasswordPage.tsx): Fluxo completo de recuperação em duas fases: solicitação de link por e-mail com `redirectTo` e formulário de redefinição de nova senha ao acessar pelo token de recuperação.
-- [`src/pages/Guards.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/pages/Guards.tsx): Protetores de rota `ProtectedRoute`, `PublicOnlyRoute` e o novo `AdminRoute` (bloqueia o acesso a usuários sem o papel `global_admin` comprovado pelo backend).
+- [`src/pages/Guards.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/pages/Guards.tsx): Protetores de rota `ProtectedRoute`, `PublicOnlyRoute` e `AdminRoute` (bloqueia o acesso a usuários sem o papel `global_admin` comprovado pelo backend).
 - [`src/pages/AdminUsersPage.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/pages/AdminUsersPage.tsx): Painel exclusivo da Administradora Global para convidar novos profissionais via Edge Function `admin-invite-user` (com tratamento de erro real e sem simulação de sucesso) e listar as contas registradas em `public.profiles`.
 - [`src/pages/MainDashboard.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/pages/MainDashboard.tsx): Painel principal protegido, integrado com dados reais do Supabase, alternância de abas, filtros e modais de ação.
 - [`src/App.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/App.tsx): Configuração de rotas via `react-router-dom`, com rota protegida `/admin/usuarios`.
@@ -68,7 +68,7 @@
 
 ## 4. Testes e Validação Executados
 
-1. **Compilação de Produção (`tsc -b && vite build`):** **APROVADO** (compilado em 1.79s sem erros).
+1. **Compilação de Produção (`tsc -b && vite build`):** **APROVADO** (compilado em 1.94s sem erros).
 2. **Análise Estática (`oxlint`):** **APROVADO** (0 erros encontrados no código de `apps/web/src`).
 3. **Suíte Automatizada de Integração ([`test-integration.mjs`](file:///C:/Users/Londres31/Documents/DEV/apps/web/test-integration.mjs)):** **APROVADO**
    - 20 arquivos essenciais validados.
@@ -81,9 +81,37 @@
 
 ---
 
-## 5. Dependências Pendentes do Backend (Terminal 2)
+## 5. Auditoria de Produção na Vercel
 
-1. **Bootstrap da Conta Global:**
-   - A conta `janamendes055@gmail.com` precisa ser cadastrada no Supabase Auth e receber o papel `role = 'global_admin'` na tabela `public.profiles` pelo procedimento seguro do Terminal 2.
-2. **Implantação da Edge Function `admin-invite-user`:**
-   - A função em `supabase/functions/admin-invite-user` deve ser publicada no projeto remoto Supabase com acesso à API administrativa do Supabase Auth para despachar os convites oficiais.
+### 5.1. Projeto e Autenticação
+- **Conta Vercel:** `pedrosalomao22099-4358` (autenticada e confirmada via Vercel CLI).
+- **Projeto Vercel:** `assistsocial` (ID: `prj_zUbTL0lZkvXdliiZz7uzsXaYBWg4`).
+- **Root Directory:** Corrigido e confirmado para `apps/web` (anteriormente estava `.` na criação do projeto, impedindo builds no repositório mono).
+
+### 5.2. Evidência da Implantação de Produção
+- **Deployment Ativo:** `dpl_Ds4wEZd6HAcaryQqKACrHYcVx9vB` (Status: `READY`, Target: `production`).
+- **Build na Vercel:** Compilado via Vite em 790ms no ambiente de build East (iad1).
+
+### 5.3. Domínios e Aliases Auditados (HTTP 200 OK)
+Todos os três domínios solicitados foram auditados e estão apontando para o deployment ativo de produção:
+1. `https://assistsocial-app.vercel.app` — **200 OK** (Confirmado)
+2. `https://assistsocial-gestao.vercel.app` — **200 OK** (Confirmado)
+3. `https://assistsocial-br.vercel.app` — **200 OK** (Confirmado)
+
+### 5.4. Teste de Acesso Direto às Rotas SPA (sem 404)
+Validação das regras de rewrite em `apps/web/vercel.json`:
+- `GET https://assistsocial-app.vercel.app/login` $\rightarrow$ **HTTP 200 OK** (`index.html`)
+- `GET https://assistsocial-app.vercel.app/cadastro` $\rightarrow$ **HTTP 200 OK** (`index.html`)
+- `GET https://assistsocial-app.vercel.app/recuperar-senha` $\rightarrow$ **HTTP 200 OK** (`index.html`)
+- `GET https://assistsocial-app.vercel.app/admin/usuarios` $\rightarrow$ **HTTP 200 OK** (`index.html`)
+
+### 5.5. Variáveis de Ambiente de Produção
+Confirmadas e criptografadas no projeto `assistsocial` na Vercel para o target `Production`:
+- `VITE_SUPABASE_URL` (Presente, Encrypted)
+- `VITE_SUPABASE_PUBLISHABLE_KEY` (Presente, Encrypted)
+
+---
+
+## 6. Histórico de Commits e Sincronização com o GitHub
+
+O repositório [`SALOMBRAS/assistsocial`](https://github.com/SALOMBRAS/assistsocial) está com a branch `main` sincronizada com 14 commits faseados (com squash merges sequenciais numerados de `#1` a `#13`), preservando a autoria e garantindo o rastreamento das contribuições no GitHub.
