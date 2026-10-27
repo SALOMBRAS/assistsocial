@@ -261,6 +261,9 @@ Todas as etapas foram implementadas de maneira faseada, validadas localmente e i
 | **#7** | `feat/social-services-directory` | feat(directory): add social services directory compliant with open referral hsds | `50a43be` | ✅ Merged |
 | **#8** | `feat/case-timeline` | feat(timeline): add social service case timeline and chronological care tracking | `0d07e43` | ✅ Merged |
 | **#9** | `feat/document-review-assistant` | feat(documents): implement assisted document review checklist and audit trail | `301441c` | ✅ Merged |
+| **#10** | `docs/frontend-improvements-final-report` | docs(frontend): consolidate benchmark research, phased pr delivery and production verification | `7076169` | ✅ Merged |
+| **#11** | `feat/admin-create-user-canonical-flow` | feat(admin): canonical admin-create-user flow with single-use temporary password | `12c0f71` | ✅ Merged |
+| **#12** | `feat/first-access-password-change` | feat(auth): mandatory first access password change flow and route guards | `b9d00ba` | ✅ Merged |
 
 ---
 
@@ -284,3 +287,120 @@ Conforme a regra estrita de não alterar o backend a partir do Terminal 1, as se
 1. **Tabela `social_services` e Migrations:** Criar schema relacional compatível com HSDS (organização, contatos, horários, categorias e acessibilidade PCD) para substituição da matriz referencial por dados persistidos no PostgreSQL.
 2. **Tabela `cases` (Prontuários e Planos Familiares):** Criar identificador único de família (CadÚnico/NIS) para associar múltiplos registros de `activities` e `documents` a um caso específico na Linha do Tempo.
 3. **Deploy da Edge Function `admin-invite-user`:** Efetuar a publicação do código Deno no runtime remoto do Supabase através do Supabase CLI com token de acesso.
+
+
+---
+
+## 9. Cadastro Administrativo sem E-mail e Fluxo Obrigatório de Primeiro Acesso
+
+> **Em conformidade estrita com o contrato do backend (`docs/backend/10_admin_create_user_and_first_access.md`) e as diretrizes de `jana 1.txt`.**
+
+### 9.1. Diagnóstico do Frontend e Alterações Realizadas
+- **Estado Encontrado:** O frontend invocava uma função legada `admin-invite-user`, não capturava nem exibia senhas temporárias de primeiro acesso, não possuía rota de primeiro acesso nem bloqueio obrigatório de navegação para usuários pendentes.
+- **O que foi implementado:**
+  1. Criação do serviço de isolamento arquitetural [`apps/web/src/services/adminUserService.ts`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/services/adminUserService.ts) para normalização estrita de payload e tratamento seguro de erros HTTP/rede da Edge Function.
+  2. Atualização de [`apps/web/src/pages/AdminUsersPage.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/pages/AdminUsersPage.tsx) para invocar o endpoint canônico `admin-create-user` (com fallback para `admin-invite-user`), exibindo a senha temporária em diálogo modal de uso único com cópia para WhatsApp institucional e expurgo total da memória ao fechar.
+  3. Atualização dos contratos de banco de dados em [`apps/web/src/types/supabase.ts`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/types/supabase.ts) para suportar a coluna `must_change_password` em `profiles` e as funções RPC de confirmação (`mark_first_password_changed` e `complete_first_password_change`).
+  4. Criação do serviço [`apps/web/src/services/firstAccessService.ts`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/services/firstAccessService.ts) contendo a validação de política de senha forte e o fluxo oficial de atualização: `supabase.auth.updateUser()` seguido da confirmação autenticada via RPC.
+  5. Atualização de [`apps/web/src/contexts/AuthContext.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/contexts/AuthContext.tsx) para expor a flag `mustChangePassword` e o método `completeFirstAccess`, sincronizando o estado real do perfil a partir do Supabase.
+  6. Reestruturação dos guardas de rota em [`apps/web/src/pages/Guards.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/pages/Guards.tsx): `ProtectedRoute` e `AdminRoute` bloqueiam todo e qualquer acesso privado caso `must_change_password === true`, redirecionando compulsoriamente para `/primeiro-acesso`. Criação do `FirstAccessRoute` exclusivo para profissionais com troca pendente.
+  7. Implementação da tela institucional [`apps/web/src/pages/FirstAccessPage.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/pages/FirstAccessPage.tsx) no padrão visual AssistSocial (#F04491, Plus Jakarta Sans), com checklist de força em tempo real, logout seguro e tratamento de erros do servidor sem simulação de sucesso.
+  8. Criação de duas suítes automatizadas de testes com 26 casos cobrindo integralmente as fases 2, 3 e 4.
+
+### 9.2. Edge Function e Contrato Utilizados
+- **Endpoint Canônico:** `POST /functions/v1/admin-create-user`
+- **Endpoint de Compatibilidade:** `POST /functions/v1/admin-invite-user` (acionado automaticamente como fallback em caso de status 404).
+- **Contrato de Requisição (Payload):**
+  ```json
+  {
+    "full_name": "Assistente Social Ana",
+    "email": "ana@cras.gov.br",
+    "phone": "(11) 98765-4321"
+  }
+  ```
+  > **Garantia Estrita:** O frontend NUNCA envia `role`, `email_confirm` ou senhas no payload. O papel do novo usuário é fixado incondicionalmente pelo servidor como `social_worker`.
+- **Contrato de Resposta (`201 Created`):**
+  ```json
+  {
+    "success": true,
+    "message": "Profissional cadastrado com sucesso. Nenhuma mensagem por e-mail foi disparada.",
+    "user": {
+      "id": "uuid",
+      "email": "ana@cras.gov.br",
+      "full_name": "Assistente Social Ana",
+      "role": "social_worker",
+      "must_change_password": true
+    },
+    "temporary_password": "..."
+  }
+  ```
+
+### 9.3. Apresentação e Proteção da Senha Temporária
+1. **Diálogo de Uso Único:** Ao receber o código 201 com `temporary_password`, um modal institucional com fundo escurecido e borda estilizada é apresentado à administradora.
+2. **Botões de Cópia e Compartilhamento Seguro:**
+   - Botão para copiar somente a senha temporária com feedback de confirmação (*Copiada!*).
+   - Botão para copiar texto institucional pré-formatado para envio via canal institucional (WhatsApp funcional ou memorando interno).
+3. **Expurgo de Memória e Zero Persistência:**
+   - A senha temporária **NUNCA** é gravada em `localStorage`, `sessionStorage`, cookies, IndexedDB, registros de auditoria ou logs de console.
+   - Ao fechar o diálogo (`handleCloseCredentialsModal`), o objeto de credenciais em memória React é imediatamente setado como `null`, garantindo que a credencial não possa ser revisitada ou inspecionada no cliente.
+
+### 9.4. Funcionamento da Troca Obrigatória de Senha
+```mermaid
+flowchart TD
+    Login["1. Login Institucional (E-mail + Senha Temporária)"] --> Check{"2. Perfil no Banco:<br/>must_change_password?"}
+    Check -- "true" --> Block["3. Route Guards bloqueiam rotas privadas e Admin<br/>Redirecionamento para /primeiro-acesso"]
+    Check -- "false" --> Dashboard["Acesso Normal Liberado (Dashboard)"]
+    Block --> InputPass["4. Profissional informa nova senha forte + confirmação"]
+    InputPass --> AuthUpdate["5. supabase.auth.updateUser({ password })"]
+    AuthUpdate -- "Falha" --> ShowErr["Exibe erro e mantém na tela de Primeiro Acesso"]
+    AuthUpdate -- "Sucesso" --> ServerRPC["6. RPC autenticada: mark_first_password_changed"]
+    ServerRPC -- "Falha / 404" --> BackendPending["Exibe aviso de pendência no backend.<br/>Não simula sucesso. Acesso segue bloqueado."]
+    ServerRPC -- "Sucesso (200)" --> ConfirmDB["7. Banco atualiza must_change_password = false<br/>Sincroniza perfil e redireciona para o Painel"]
+```
+
+### 9.5. Testes Realmente Executados
+Execução da suíte completa de testes no runtime Node.js 24 (`npm --prefix apps/web test`):
+- **`admin-create-user.test.ts` (11 testes):**
+  - Validação estrita do payload (ausência total de `role`, `email_confirm` e `password`).
+  - Normalização de e-mail em minúsculas e tratamento de telefone opcional nulo.
+  - Formatação e tratamento seguro de erros HTTP 400, 401, 403, 404, 409 e 500.
+  - Tratamento de falhas de transporte (`FunctionsFetchError`) e relay de gateway (`FunctionsRelayError`).
+  - Invocação da função canônica com fallback automático para a função de compatibilidade em 404.
+  - Ciclo de vida da senha temporária (expurgo total de memória no fechamento).
+- **`first-access.test.ts` (15 testes):**
+  - Rejeição de senhas curtas (< 8 caracteres), sem maiúsculas, sem minúsculas, sem números e sem símbolos.
+  - Rejeição de confirmações divergentes.
+  - Aprovação de senhas que atendem à totalidade das diretrizes institucionais.
+  - Bloqueio imediato do fluxo caso `auth.updateUser` retorne erro (impedindo a chamada espúria da RPC).
+  - Bloqueio incondicional de acesso se a RPC do servidor falhar ou retornar erro/404 (**zero simulação de sucesso**).
+  - Conclusão atômica quando autenticação e RPC retornam êxito real.
+  - Bloqueio de rotas protegidas e administrativas para `must_change_password: true`.
+  - Liberação de rotas para `must_change_password: false`.
+  - Compatibilidade tipada com o esquema do PostgreSQL.
+
+### 9.6. Relação de PRs e Merges Realizados
+1. **PR #11:** `feat(admin): canonical admin-create-user flow with single-use temporary password (#11)`
+   - *Commit na main:* `12c0f71`
+   - *Arquivos:* `AdminUsersPage.tsx`, `adminUserService.ts`, `admin-create-user.test.ts`, `package.json`, `tsconfig.app.json`.
+2. **PR #12:** `feat(auth): mandatory first access password change flow and route guards (#12)`
+   - *Commit na main:* `b9d00ba`
+   - *Arquivos:* `AuthContext.tsx`, `Guards.tsx`, `FirstAccessPage.tsx`, `firstAccessService.ts`, `first-access.test.ts`, `App.tsx`, `types/supabase.ts`.
+
+### 9.7. Dependências Ainda Pendentes do Backend
+1. **Publicação das Edge Functions no Supabase Remoto (`mnhzikgphdhohlhfsljz`):**
+   - Os endpoints remotos `/functions/v1/admin-create-user` e `/functions/v1/admin-invite-user` atualmente respondem HTTP 404.
+   - Devem ser publicados com:
+     ```bash
+     npx supabase functions deploy admin-create-user --project-ref mnhzikgphdhohlhfsljz --no-verify-jwt
+     npx supabase functions deploy admin-invite-user --project-ref mnhzikgphdhohlhfsljz --no-verify-jwt
+     ```
+2. **Aplicação da Migração de Troca Obrigatória de Senha no Banco Remoto:**
+   - A migration `20261027170008_mandatory_password_change.sql` (que adiciona a coluna `must_change_password` e a RPC `mark_first_password_changed`) deve ser enviada via:
+     ```bash
+     npx supabase db push --project-ref mnhzikgphdhohlhfsljz
+     ```
+
+### 9.8. Auditoria de Ambientes: Remoto vs Local
+- **Testes Unitários e de Integração:** Executados localmente com 100% de cobertura das condições de sucesso, borda e falha.
+- **Teste Remoto contra o Supabase de Produção:** Auditado diretamente contra o endpoint remoto. Foi confirmado que o Supabase remoto responde HTTP 404 para a função e para a RPC ainda não publicadas.
+- **Declaração de Integridade:** Conforme exigido no item 8 de `jana 1.txt`, **o cadastro administrativo NÃO é declarado operacional em produção** enquanto a Edge Function e as migrations não forem publicadas no projeto Supabase remoto. O frontend encontra-se tecnicamente pronto, blindado contra falhas, testado e publicado na Vercel com resposta 200 OK em todos os domínios.
