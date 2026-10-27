@@ -19,6 +19,7 @@ import {
 import { ShareModal } from '../components/ShareModal'
 import { BottomNav } from '../components/BottomNav'
 import { CalendarView } from '../components/CalendarView'
+import { ReportsView } from '../components/ReportsView'
 import { DocumentsView } from '../components/DocumentsView'
 import { TeamView } from '../components/TeamView'
 import { useAuth } from '../contexts/AuthContext'
@@ -475,6 +476,14 @@ export const MainDashboard: React.FC = () => {
               }}
               onToggleComplete={handleToggleComplete}
               onReschedule={(activity) => setRescheduleTarget(activity)}
+            />
+          )}
+
+          {/* VIEW: REPORTS & METRICS */}
+          {currentTab === 'reports' && (
+            <ReportsView
+              activities={activities}
+              profileName={profileDisplayName}
             />
           )}
 
