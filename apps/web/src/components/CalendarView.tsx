@@ -659,11 +659,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           {viewMode === 'day' && (
             <div className="bg-white rounded-3xl border border-[#F6E4EC] shadow-[0_2px_12px_rgba(240,68,145,0.03)] p-4 md:p-8 space-y-4">
               <div className="flex items-center justify-between pb-4 border-b border-[#F6E4EC]">
-                <div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setViewMode('month')}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FFF9FB] border border-[#F6E4EC] text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED] text-xs font-bold transition-all cursor-pointer shadow-sm"
+                    title="Voltar ao Calendário Mensal"
+                  >
+                    <ChevronLeft size={16} />
+                    <span>Voltar ao Mês</span>
+                  </button>
+                  <div>
                   <h3 className="text-base font-black text-[#28232A] capitalize">{periodTitle}</h3>
                   <p className="text-xs text-[#827780]">
                     {getActivitiesForDay(currentDate).length} atividade(s) agendada(s) para esta data
-                  </p>
+                    </p>
+                  </div>
                 </div>
                 <button
                   onClick={onOpenNewActivity}

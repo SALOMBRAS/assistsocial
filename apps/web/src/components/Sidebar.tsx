@@ -16,7 +16,7 @@ import {
   GitCommit,
 } from 'lucide-react'
 
-export type NavTab = 'dashboard' | 'activities' | 'calendar' | 'reports' | 'documents' | 'services' | 'timeline' | 'team' | 'settings'
+export type NavTab = 'dashboard' | 'activities' | 'calendar' | 'residenciais' | 'reports' | 'documents' | 'services' | 'timeline' | 'team' | 'settings'
 
 interface SidebarProps {
   currentTab: NavTab
@@ -39,6 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard', label: 'Painel Inicial', icon: <LayoutDashboard size={20} /> },
     { id: 'activities', label: 'Atividades', icon: <CalendarCheck size={20} />, badge: '5' },
     { id: 'calendar', label: 'Agenda & Visitas', icon: <Calendar size={20} /> },
+    { id: 'residenciais', label: 'Residenciais', icon: <Building2 size={20} /> },
     { id: 'timeline', label: 'Linha do Tempo', icon: <GitCommit size={20} /> },
     { id: 'reports', label: 'Relatórios', icon: <FileSpreadsheet size={20} /> },
     { id: 'services', label: 'Diretório de Serviços', icon: <Building2 size={20} /> },

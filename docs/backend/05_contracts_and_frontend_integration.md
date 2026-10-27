@@ -186,3 +186,49 @@ interface DashboardAnalytics {
 - A função executa como `SECURITY INVOKER`, herdando as políticas de RLS da tabela `activities`.
 - O usuário logado só consegue visualizar números agregados de suas próprias atividades ou daquelas compartilhadas ativamente com ele (`can_access_resource`).
 - Nenhum identificador, nome de família ou dado confidencial é exposto no payload analítico.
+
+
+---
+
+## 8. Contrato de Cadastro Administrativo sem E-mail e Troca Obrigatória de Senha
+
+### 8.1. Chamada de Criação de Usuário pela Administradora Global:
+```typescript
+const { data, error } = await supabase.functions.invoke('admin-create-user', {
+  body: {
+    email: 'novo.profissional@cras.gov.br',
+    full_name: 'Nome do Profissional',
+    phone: '(11) 98765-4321'
+  }
+});
+
+if (error) {
+  // Trata erro (ex: 409 duplicado, 403 não autorizado)
+} else {
+  // Exibe a senha temporária na modal (retornada uma única vez pelo servidor)
+  console.log('Senha temporária:', data.temporary_password);
+}
+```
+
+### 8.2. Fluxo Obrigatório de Troca de Senha no Primeiro Acesso:
+Quando o profissional faz login e `profile.must_change_password === true`:
+
+```typescript
+// 1. Atualiza a senha através do mecanismo nativo do Supabase Auth
+const { error: authError } = await supabase.auth.updateUser({
+  password: novaSenhaForte
+});
+
+if (authError) {
+  throw authError;
+}
+
+// 2. Notifica o backend para desativar a pendência e registrar a auditoria
+const { data: rpcData, error: rpcError } = await supabase.rpc('mark_first_password_changed');
+
+if (rpcError) {
+  throw rpcError;
+}
+
+// 3. Libera navegação normal da aplicação
+```

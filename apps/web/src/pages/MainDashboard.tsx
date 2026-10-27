@@ -24,6 +24,7 @@ import { ServicesDirectoryView } from '../components/ServicesDirectoryView'
 import { CaseTimelineView } from '../components/CaseTimelineView'
 import { DocumentsView } from '../components/DocumentsView'
 import { TeamView } from '../components/TeamView'
+import { ResidenciaisView } from '../components/ResidenciaisView'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import type { ActivityStatus, ActivityCategory } from '../types/supabase'
@@ -462,6 +463,9 @@ export const MainDashboard: React.FC = () => {
               </div>
             </>
           )}
+
+          {/* VIEW: RESIDENCIAIS (PAUPINA & JOAQUIM MACHADO) */}
+          {currentTab === 'residenciais' && <ResidenciaisView />}
 
           {/* VIEW: AGENDA & CALENDAR */}
           {currentTab === 'calendar' && (

@@ -293,6 +293,135 @@ export interface Database {
         }
         Update: never // Audit logs are immutable
       }
+      activity_attachments: {
+        Row: {
+          id: string
+          activity_id: string
+          uploader_id: string
+          storage_path: string
+          original_name: string
+          mime_type: string
+          file_size: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          activity_id: string
+          uploader_id: string
+          storage_path: string
+          original_name: string
+          mime_type: string
+          file_size?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          activity_id?: string
+          uploader_id?: string
+          storage_path?: string
+          original_name?: string
+          mime_type?: string
+          file_size?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      residential_batches: {
+        Row: {
+          id: string
+          residencial_slug: 'paupina' | 'joaquim_machado' | string
+          name: string
+          dispatch_date: string | null
+          status: 'draft' | 'enviado' | 'em_processamento' | 'concluido' | 'arquivado' | string
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          residencial_slug: 'paupina' | 'joaquim_machado' | string
+          name: string
+          dispatch_date?: string | null
+          status?: 'draft' | 'enviado' | 'em_processamento' | 'concluido' | 'arquivado' | string
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          residencial_slug?: 'paupina' | 'joaquim_machado' | string
+          name?: string
+          dispatch_date?: string | null
+          status?: 'draft' | 'enviado' | 'em_processamento' | 'concluido' | 'arquivado' | string
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      dossiers: {
+        Row: {
+          id: string
+          residencial_slug: 'paupina' | 'joaquim_machado' | string
+          code: string | null
+          person_name: string
+          unit_number: string | null
+          phone: string | null
+          operational_status: 'sem_pendencia' | 'com_pendencias' | 'reenviado_pesquisa' | 'nao_veio' | 'excluido' | string
+          compliance_status: 'conforme' | 'inconforme' | 'neutro' | string
+          batch_id: string | null
+          needs_proxy: boolean
+          proxy_status: 'nao_se_aplica' | 'pendente' | 'em_andamento' | 'concluida' | string
+          proxy_reason: string | null
+          proxy_notes: string | null
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          residencial_slug: 'paupina' | 'joaquim_machado' | string
+          code?: string | null
+          person_name: string
+          unit_number?: string | null
+          phone?: string | null
+          operational_status?: 'sem_pendencia' | 'com_pendencias' | 'reenviado_pesquisa' | 'nao_veio' | 'excluido' | string
+          compliance_status?: 'conforme' | 'inconforme' | 'neutro' | string
+          batch_id?: string | null
+          needs_proxy?: boolean
+          proxy_status?: 'nao_se_aplica' | 'pendente' | 'em_andamento' | 'concluida' | string
+          proxy_reason?: string | null
+          proxy_notes?: string | null
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          residencial_slug?: 'paupina' | 'joaquim_machado' | string
+          code?: string | null
+          person_name?: string
+          unit_number?: string | null
+          phone?: string | null
+          operational_status?: 'sem_pendencia' | 'com_pendencias' | 'reenviado_pesquisa' | 'nao_veio' | 'excluido' | string
+          compliance_status?: 'conforme' | 'inconforme' | 'neutro' | string
+          batch_id?: string | null
+          needs_proxy?: boolean
+          proxy_status?: 'nao_se_aplica' | 'pendente' | 'em_andamento' | 'concluida' | string
+          proxy_reason?: string | null
+          proxy_notes?: string | null
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Functions: {
       get_dashboard_analytics: {
@@ -326,15 +455,6 @@ export interface Database {
           total_documents: number
           total_active_shares: number
           generated_at: string
-        }
-      }
-      complete_first_password_change: {
-        Args: {
-          p_new_password: string
-        }
-        Returns: {
-          success: boolean
-          message: string
         }
       }
       mark_first_password_changed: {

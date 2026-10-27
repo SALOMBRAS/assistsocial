@@ -33,12 +33,13 @@ sequenceDiagram
     Web->>DB: Lê profiles.must_change_password (true)
     Web->>Worker: Redireciona e bloqueia tela: Troca Obrigatória de Senha
     Worker->>Web: Informa nova senha forte
-    Web->>DB: RPC complete_first_password_change(p_new_password)
-    DB->>Auth: Atualiza hash da senha em auth.users
-    DB->>DB: Atualiza must_change_password = false
-    DB->>DB: Registra auditoria da troca
-    DB-->>Web: Sucesso
-    Web->>Worker: Libera acesso ao sistema
+    Web->>Auth: supabase.auth.updateUser({ password: novaSenha })
+    Auth-->>Web: Senha atualizada no GoTrue Auth (sessão e tokens renovados)
+    Web->>DB: RPC mark_first_password_changed()
+    DB->>DB: Valida auth.uid(), define flag transacional, atualiza must_change_password = false
+    DB->>DB: Registra auditoria forense sem credenciais
+    DB-->>Web: Sucesso (acesso liberado)
+    Web->>Worker: Libera navegação completa ao sistema
 ```
 
 ---
@@ -78,7 +79,7 @@ Aceita tanto campos em `snake_case` quanto `camelCase`:
 }
 ```
 
-> **Atenção:** Qualquer tentativa do cliente de enviar `role`, `email_confirm` ou flags privilegiadas é solenemente ignorada e descartada pelo servidor. O papel é fixado incondicionalmente como `'social_worker'`.
+> **Atenção:** Qualquer tentativa do cliente de enviar `role`, `email_confirm` ou flags privilegiadas é descartada pelo servidor. O papel é fixado incondicionalmente como `'social_worker'`.
 
 ### 3.3. Formato da Resposta de Sucesso (`201 Created`)
 
@@ -126,89 +127,72 @@ Para evitar a criação de contas órfãs no Supabase Auth caso ocorra uma falha
 2. Em seguida, o perfil institucional é consolidado na tabela `public.profiles`.
 3. Caso a inserção/atualização em `public.profiles` falhe:
    - A Edge Function executa imediatamente uma **estratégia de compensação**: invoca `adminClient.auth.admin.deleteUser(newUserId)`.
-   - Isso expurga o usuário recém-criado de `auth.users`, impedindo a persistência de contas inconsistentes e permitindo nova tentativa.
+   - Isso expurga o usuário recém-criado de `auth.users`, impedindo a persistência de contas inconsistentes e permitindo nova tentativa limpa.
 
 ---
 
-## 5. Mecanismo de Troca Obrigatória de Senha
+## 5. Revisão Crítica de Segurança e Fluxo Oficial de Troca de Senha
 
-### 5.1. Coluna de Controle (`must_change_password`)
-A migration `20261027170008_mandatory_password_change.sql` adicionou à tabela `public.profiles`:
-```sql
-ALTER TABLE public.profiles
-ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT false;
+### 5.1. Auditoria de Segurança: Eliminação de `complete_first_password_change`
+Durante a auditoria da Fase 2, o mecanismo anterior `complete_first_password_change(p_new_password TEXT)` foi avaliado e **formalmente rejeitado e removido** pelas seguintes razões críticas de segurança:
+1. **Vazamento de Credenciais em Logs SQL:** Ao trafegar a nova senha como argumento de uma função PL/pgSQL (`p_new_password`), o texto plano da senha podia ser gravado em tabelas de diagnóstico do PostgreSQL (`pg_stat_statements`), logs do servidor ou buffers de replicação.
+2. **Contorno das Políticas de Senha do GoTrue:** A alteração direta em `auth.users.encrypted_password` contornava as políticas de força de senha, validações de senha comprometida (leaked password protection), histórico de senhas e webhooks de autenticação do Supabase.
+3. **Privilégio Excessivo:** Criava uma dependência de `SECURITY DEFINER` com escrita direta no schema interno `auth`, aumentando a superfície de ataque caso ocorresse vulnerabilidade de injeção ou elevação.
 
-CREATE INDEX IF NOT EXISTS idx_profiles_must_change_password
-ON public.profiles (id) WHERE must_change_password = true;
-```
+### 5.2. Fluxo Oficial e Seguro Adotado
+O AssistSocial consolidou exclusivamente o **fluxo oficial preconizado pelo Supabase Auth**:
 
-### 5.2. Proteção contra Violação Direta (Anti-Tampering)
-A trigger `prevent_profile_tampering` no PostgreSQL bloqueia tentativas de usuários comuns alterarem seu próprio papel ou desativarem a flag `must_change_password` via chamadas normais de `UPDATE`:
-```sql
-CREATE OR REPLACE FUNCTION public.prevent_profile_tampering()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.role IS DISTINCT FROM OLD.role THEN
-    IF NOT public.is_current_user_global_admin() THEN
-      RAISE EXCEPTION 'Acesso negado: Nao e permitido alterar o papel do usuario.';
-    END IF;
-  END IF;
-
-  IF NEW.must_change_password IS DISTINCT FROM OLD.must_change_password THEN
-    IF NOT public.is_current_user_global_admin() THEN
-      RAISE EXCEPTION 'Acesso negado: O indicador de troca obrigatoria de senha so pode ser alterado pelo fluxo autorizado no servidor.';
-    END IF;
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-```
-
-### 5.3. RPCs de Troca Segura de Senha
-
-O Frontend possui duas opções de integração com o servidor:
-
-#### Opção A (Recomendada): RPC Unificada `complete_first_password_change`
-Executa em uma única transação atômica a alteração segura da senha no `auth.users`, a desativação da flag `must_change_password` e o registro de auditoria:
-
-```typescript
-const { data, error } = await supabase.rpc('complete_first_password_change', {
-  p_new_password: 'NovaSenhaForte@2026'
-});
-```
-
-#### Opção B: Atualização via Supabase Auth + RPC `mark_first_password_changed`
-1. O frontend chama a API padrão do cliente:
+1. **Passo 1 (Supabase Auth Client):** O usuário autenticado com a senha temporária altera sua senha utilizando o SDK oficial:
    ```typescript
-   const { error } = await supabase.auth.updateUser({ password: 'NovaSenhaForte@2026' });
+   const { error } = await supabase.auth.updateUser({
+     password: novaSenhaForte
+   });
    ```
-2. Após o retorno bem-sucedido, invoca a RPC de confirmação:
+   - O GoTrue valida os critérios de segurança, calcula o hash criptográfico seguro (bcrypt) internamente e revoga sessões anteriores se configurado.
+
+2. **Passo 2 (Confirmação Protegida via RPC):** Após o retorno com sucesso do Auth, o frontend invoca a RPC:
    ```typescript
    const { data, error } = await supabase.rpc('mark_first_password_changed');
    ```
 
-Ambas as RPCs operam sob `SECURITY DEFINER`, verificam rigorosamente a identidade do chamador via `auth.uid()` e auditam a operação sem reter senhas.
+### 5.3. Controles de Segurança da RPC `mark_first_password_changed`
+A migration `20261027170008_mandatory_password_change.sql` implementa os seguintes controles rigorosos:
+- **Identidade Estrita via `auth.uid()`:** A RPC extrai a identidade diretamente do token JWT do chamador. Não aceita ID por parâmetro, tornando impossível a um usuário alterar o status de outro.
+- **Configuração de Contexto de Sessão Protegida:** A RPC define uma flag transacional (`set_config('assistsocial.in_password_change_rpc', 'true', true)`) que é verificada pela trigger `prevent_profile_tampering`.
+- **Proteção Anti-Adulteração (`trg_prevent_profile_tampering`):**
+  - Usuários comuns são estritamente impedidos de alterar seu `role` (apenas `global_admin` pode).
+  - Usuários comuns são estritamente impedidos de alterar `must_change_password` diretamente via `UPDATE` na tabela `public.profiles`. Qualquer tentativa sem a flag transacional ativa é rejeitada com erro `42501`.
+- **Search Path Seguro:** A função foi blindada com `SET search_path = public, auth, pg_temp;`, prevenindo ataques de sequestro de schema.
+- **Restrição de Execução:** `REVOKE ALL ON FUNCTION public.mark_first_password_changed() FROM PUBLIC;` e `GRANT EXECUTE TO authenticated;`.
+- **Auditoria Forense sem Credenciais:** A conclusão da troca de senha é gravada em `public.audit_logs` contendo apenas o `actor_id`, timestamp e ação `auth.password_changed_first_access`, sem reter senhas nem dados sensíveis.
 
 ---
 
-## 6. Diagnóstico de Publicação Remota
+## 6. Diagnóstico de Publicação Remota e Migrações
 
-### Estado Auditado do Projeto Remoto (`mnhzikgphdhohlhfsljz`):
-- O endpoint remoto `https://mnhzikgphdhohlhfsljz.supabase.co/functions/v1/admin-create-user` e `admin-invite-user` retornaram HTTP `404 Not Found`.
-- A CLI do Supabase na máquina local não possui o token `SUPABASE_ACCESS_TOKEN` configurado na sessão do terminal (`AccessTokenRequiredError`).
+### 6.1. Estado Auditado do Projeto Remoto (`mnhzikgphdhohlhfsljz`)
+- **Edge Functions:**
+  - `https://mnhzikgphdhohlhfsljz.supabase.co/functions/v1/admin-create-user` $\rightarrow$ **PUBLICADA E OPERACIONAL** (Retorna 200 OK no preflight OPTIONS com CORS liberado e 401 Unauthorized para chamadas não autenticadas).
+  - `https://mnhzikgphdhohlhfsljz.supabase.co/functions/v1/admin-invite-user` $\rightarrow$ **PUBLICADA E OPERACIONAL** (CORS e autenticação ativos).
+- **Banco de Dados Remoto:**
+  - Migrações 01 a 06: Tabelas criadas no banco de dados, porém não registradas na tabela `supabase_migrations.schema_migrations`.
+  - Migrações 07 (`analytics_and_indicators.sql`) e 08 (`mandatory_password_change.sql`): Pendentes de aplicação remota.
 
-### Comandos para Deploy pelo Operador Humano:
+### 6.2. Procedimento de Aplicação e Reconciliação do Histórico
+Para aplicar as migrações 07 e 08 de forma consistente e reconciliar o histórico da CLI:
+
 ```bash
-# 1. Login na CLI do Supabase (interativo ou via token)
-npx supabase login
+# 1. Reconciliar migrações 01 a 06 como já aplicadas remotamente
+npx supabase migration repair --status applied 20261027170001 --project-ref mnhzikgphdhohlhfsljz
+npx supabase migration repair --status applied 20261027170002 --project-ref mnhzikgphdhohlhfsljz
+npx supabase migration repair --status applied 20261027170003 --project-ref mnhzikgphdhohlhfsljz
+npx supabase migration repair --status applied 20261027170004 --project-ref mnhzikgphdhohlhfsljz
+npx supabase migration repair --status applied 20261027170005 --project-ref mnhzikgphdhohlhfsljz
+npx supabase migration repair --status applied 20261027170006 --project-ref mnhzikgphdhohlhfsljz
 
-# 2. Deploy da Edge Function principal
-npx supabase functions deploy admin-create-user --project-ref mnhzikgphdhohlhfsljz --no-verify-jwt
+# 2. Executar dry-run para confirmar que apenas 07 e 08 serão enviadas
+npx supabase db push --dry-run --project-ref mnhzikgphdhohlhfsljz
 
-# 3. Deploy da Edge Function de compatibilidade
-npx supabase functions deploy admin-invite-user --project-ref mnhzikgphdhohlhfsljz --no-verify-jwt
-
-# 4. Aplicação da migração de troca de senha no banco remoto
+# 3. Aplicar as migrações pendentes no banco de produção
 npx supabase db push --project-ref mnhzikgphdhohlhfsljz
 ```

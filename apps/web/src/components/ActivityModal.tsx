@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { X } from 'lucide-react'
 import type { ActivityItem } from './ActivityCard'
 import type { ActivityCategory, ActivityStatus } from '../types/supabase'
+import { ActivityAttachmentsSection } from './ActivityAttachmentsSection'
 
 interface ActivityModalProps {
   isOpen: boolean
@@ -196,6 +197,9 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
               className="w-full px-4 py-2.5 text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] placeholder:text-[#827780]/60 focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491] transition-all"
             ></textarea>
           </div>
+
+          {/* Seção: Relatórios e Anexos */}
+          <ActivityAttachmentsSection activityId={editingActivity?.id} />
 
           {/* Modal Footer Buttons */}
           <div className="pt-3 border-t border-[#F6E4EC] flex items-center justify-end gap-3">

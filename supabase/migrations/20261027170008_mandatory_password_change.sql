@@ -1,5 +1,6 @@
 -- ==============================================================================
--- ASSISTSOCIAL - MIGRATION 08: MANDATORY FIRST ACCESS PASSWORD CHANGE & SECURITY
+-- ASSISTSOCIAL - MIGRAÇÃO 08: INDICADOR DE PRIMEIRO ACESSO E SEGURANÇA DE SENHA
+-- Fluxo Oficial Seguro: Troca via Supabase Auth SDK + Confirmação RPC
 -- ==============================================================================
 
 -- 1. ADICIONA COLUNA must_change_password À TABELA public.profiles
@@ -84,79 +85,31 @@ CREATE TRIGGER trg_prevent_profile_tampering
   FOR EACH ROW
   EXECUTE FUNCTION public.prevent_profile_tampering();
 
--- 4. RPC AUTENTICADA: COMPLETE FIRST PASSWORD CHANGE
--- Altera a senha no auth.users via hash criptográfico seguro (bcrypt) e desativa must_change_password
-CREATE OR REPLACE FUNCTION public.complete_first_password_change(p_new_password TEXT)
-RETURNS JSONB AS $$
-DECLARE
-  v_user_id UUID := auth.uid();
-BEGIN
-  -- 1. Verifica autenticação
-  IF v_user_id IS NULL THEN
-    RAISE EXCEPTION 'Não autorizado: É necessário estar autenticado para alterar a senha.'
-      USING ERRCODE = '42501';
-  END IF;
-
-  -- 2. Valida critérios de força da nova senha
-  IF p_new_password IS NULL OR length(p_new_password) < 8 THEN
-    RAISE EXCEPTION 'A nova senha deve possuir no mínimo 8 caracteres.'
-      USING ERRCODE = '22023';
-  END IF;
-
-  -- 3. Sinaliza contexto seguro para o trigger
-  PERFORM set_config('assistsocial.in_password_change_rpc', 'true', true);
-
-  -- 4. Atualiza a senha no Supabase Auth usando bcrypt (gen_salt('bf'))
-  UPDATE auth.users
-  SET encrypted_password = crypt(p_new_password, gen_salt('bf')),
-      updated_at = timezone('utc'::text, now())
-  WHERE id = v_user_id;
-
-  -- 5. Atualiza o perfil desmarcando a exigência
-  UPDATE public.profiles
-  SET must_change_password = false,
-      updated_at = timezone('utc'::text, now())
-  WHERE id = v_user_id;
-
-  -- 6. Registra auditoria forense sem credenciais
-  INSERT INTO public.audit_logs (actor_id, action, resource_type, resource_id, details)
-  VALUES (
-    v_user_id,
-    'auth.password_changed_first_access',
-    'profile',
-    v_user_id,
-    jsonb_build_object(
-      'timestamp', timezone('utc'::text, now()),
-      'mechanism', 'rpc.complete_first_password_change'
-    )
-  );
-
-  RETURN jsonb_build_object(
-    'success', true,
-    'message', 'Senha alterada com sucesso! Acesso completo liberado.'
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, extensions, pg_temp;
-
--- 5. RPC AUTENTICADA COMPLEMENTAR: MARK FIRST PASSWORD CHANGED
--- Para quando o frontend efetua o update via client.auth.updateUser({ password })
+-- 4. RPC AUTENTICADA: MARK FIRST PASSWORD CHANGED
+-- Fluxo Oficial e Seguro: O usuário altera a senha via client.auth.updateUser({ password })
+-- e em seguida invoca esta RPC autenticada para atestar a conclusão e desativar must_change_password.
+-- Não manipula strings de senha em SQL nem altera auth.users diretamente.
 CREATE OR REPLACE FUNCTION public.mark_first_password_changed()
 RETURNS JSONB AS $$
 DECLARE
   v_user_id UUID := auth.uid();
 BEGIN
+  -- 1. Validação estrita de autenticação
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'Não autorizado: Usuário não autenticado.'
       USING ERRCODE = '42501';
   END IF;
 
+  -- 2. Habilita flag transacional para permitir a atualização pelo trigger
   PERFORM set_config('assistsocial.in_password_change_rpc', 'true', true);
 
+  -- 3. Atualiza o perfil institucional do chamador
   UPDATE public.profiles
   SET must_change_password = false,
       updated_at = timezone('utc'::text, now())
   WHERE id = v_user_id;
 
+  -- 4. Registro forense de auditoria (sem expor credenciais)
   INSERT INTO public.audit_logs (actor_id, action, resource_type, resource_id, details)
   VALUES (
     v_user_id,
@@ -171,14 +124,11 @@ BEGIN
 
   RETURN jsonb_build_object(
     'success', true,
-    'message', 'Indicador de troca de senha desativado com sucesso.'
+    'message', 'Indicador de troca de senha desativado com sucesso. Acesso completo liberado.'
   );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, pg_temp;
 
 -- Permissões de Execução
-REVOKE ALL ON FUNCTION public.complete_first_password_change(TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.complete_first_password_change(TEXT) TO authenticated;
-
 REVOKE ALL ON FUNCTION public.mark_first_password_changed() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.mark_first_password_changed() TO authenticated;

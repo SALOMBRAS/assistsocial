@@ -1,6 +1,6 @@
 # AssistSocial — Documentação Técnica do Backend
 
-Bem-vindo à documentação oficial da infraestrutura de backend, banco de dados e segurança do **AssistSocial** (Terminal 2).
+Bem-vindo à documentação oficial da infraestrutura de backend, banco de dados e segurança do **AssistSocial** (Terminal 2 e Terminal 3).
 
 ---
 
@@ -26,6 +26,8 @@ Bem-vindo à documentação oficial da infraestrutura de backend, banco de dados
    - Benchmarking de projetos abertos (CaseLight, CiviCase, CommCare, OSCaR, Open Referral, CIVORA), auditoria da arquitetura atual, análise de licenças e matriz estratégica de evolução.
 10. [10. Cadastro Administrativo sem E-mail e Troca Obrigatória de Senha](./10_admin_create_user_and_first_access.md)
    - Especificação canônica da Edge Function `admin-create-user`, geração de senha temporária de uso único, eliminação de disparo de e-mails, RPCs seguras de troca de senha no primeiro acesso e governança anti-órfãos.
+11. [11. Residenciais (Paupina e Joaquim Machado), Dossiês, Lotes e Anexos de Atividades](./11_residenciais_dossiers_and_attachments.md)
+   - Gestão territorial, acompanhamento de dossiês pelos 8 indicadores, envios de lotes, controle de procurações para quem não assina e anexos de relatórios técnicos em atividades via Supabase Storage.
 
 ---
 
