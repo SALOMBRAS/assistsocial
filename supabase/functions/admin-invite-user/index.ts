@@ -1,15 +1,48 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Lista de origens autorizadas da aplicação em produção e desenvolvimento
+const ALLOWED_ORIGINS = [
+  'https://assistsocial-app.vercel.app',
+  'https://assistsocial-gestao.vercel.app',
+  'https://assistsocial-br.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+]
+
+/**
+ * Constrói os cabeçalhos CORS com base na origem da requisição,
+ * garantindo compatibilidade com chamadas de produção, preview e preflight.
+ */
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('Origin') || ''
+  const isAllowed = ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.vercel.app')
+  
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : (origin || '*'),
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Max-Age': '86400',
+  }
 }
 
 serve(async (req) => {
-  // 1. Tratar preflight CORS
+  const corsHeaders = getCorsHeaders(req)
+
+  // 1. Tratar preflight CORS (método OPTIONS)
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { 
+      status: 200, 
+      headers: corsHeaders 
+    })
+  }
+
+  // Apenas aceita requisições POST
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Método não permitido. Utilize POST.' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   }
 
   try {
@@ -65,8 +98,21 @@ serve(async (req) => {
       )
     }
 
-    // 5. Validar dados da requisição
-    const { email, fullName, phone } = await req.json()
+    // 5. Validar dados da requisição com tratamento de corpo JSON
+    let body: any
+    try {
+      body = await req.json()
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Corpo da requisição inválido. JSON esperado.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const email = body?.email
+    // Suporte interoperável tanto para snake_case (full_name) quanto camelCase (fullName)
+    const fullName = body?.full_name || body?.fullName || ''
+    const phone = body?.phone || ''
 
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       return new Response(
@@ -76,11 +122,12 @@ serve(async (req) => {
     }
 
     // 6. Enviar convite via Supabase Admin API
-    // REGRA DE SEGURANÇA: Novos convidados recebem estritamente o papel 'social_worker'
-    const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email.trim(), {
+    // REGRA DE SEGURANÇA: Novos convidados recebem estritamente o papel 'social_worker'.
+    // Qualquer papel fornecido pelo cliente é sumariamente ignorado.
+    const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email.trim().toLowerCase(), {
       data: {
-        full_name: (fullName || '').trim(),
-        phone: (phone || '').trim(),
+        full_name: fullName.trim(),
+        phone: phone.trim(),
         role: 'social_worker'
       }
     })
@@ -92,14 +139,14 @@ serve(async (req) => {
       )
     }
 
-    // 7. Registro de auditoria forense
+    // 7. Registro de auditoria forense sem persistir dados sensíveis
     await adminClient.from('audit_logs').insert({
       actor_id: user.id,
       action: 'admin.user_invited',
       resource_type: 'user',
       resource_id: inviteData.user.id,
       details: {
-        invited_email: email.trim(),
+        invited_email: email.trim().toLowerCase(),
         role_assigned: 'social_worker',
         timestamp: new Date().toISOString()
       }

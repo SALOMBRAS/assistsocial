@@ -74,7 +74,6 @@ O AssistSocial opera em modelo estritamente fechado: novos assistentes sociais s
   [auth.email]
   enable_signup = false
   ```
-  *(A configuração local é válida para ambientes de desenvolvimento via Supabase CLI, mas não se aplica automaticamente ao projeto remoto hospedado).*
 - **Verificação via API Remota:** Chamada ao endpoint `auth/v1/signup` revelou que o cadastro público ainda necessita de desativação manual no painel da nuvem.
 
 ### Ação Necessária no Painel do Supabase:
@@ -85,9 +84,28 @@ O AssistSocial opera em modelo estritamente fechado: novos assistentes sociais s
 
 ---
 
-## 5. Edge Function `admin-invite-user`
+## 5. Edge Function `admin-invite-user` e Tratamento de CORS
 
 A Edge Function [supabase/functions/admin-invite-user/index.ts](file:///C:/Users/Londres31/Documents/DEV/supabase/functions/admin-invite-user/index.ts) gerencia a emissão segura de convites administrativos.
+
+### Tratamento e Cabeçalhos CORS:
+- **Preflight OPTIONS:** Retorna `status: 200` com os cabeçalhos CORS imediatos.
+- **Origens Autorizadas:**
+  - `https://assistsocial-app.vercel.app` (URL de produção)
+  - `https://assistsocial-gestao.vercel.app`
+  - `https://assistsocial-br.vercel.app`
+  - Deployments de Preview do Vercel (`*.vercel.app`)
+  - `http://localhost:5173` e `http://localhost:3000` (desenvolvimento local)
+- **Métodos Permitidos:** `POST, OPTIONS`
+- **Cabeçalhos Permitidos:** `authorization, x-client-info, apikey, content-type`
+- **Contrato de Resposta:** Todas as respostas (códigos 200, 400, 401, 403, 405 e 500) incluem os cabeçalhos CORS completos e o header `Content-Type: application/json`.
+
+### Interoperabilidade de Payloads:
+O backend aceita e normaliza de forma transparente os payloads enviados pelo frontend:
+- Suporta tanto `full_name` (snake_case padrão do banco e do Terminal 1) quanto `fullName` (camelCase).
+- Suporta `email` com validação de formato e conversão para caixa baixa (`lowercase`).
+- Sanitiza o parâmetro `phone`.
+- **Forçamento de Papel no Servidor:** Qualquer tentativa de envio de papel (`role`) no corpo da requisição é completamente ignorada; o servidor força estritamente `role: 'social_worker'`.
 
 ### Auditoria da Função Remota:
 - **Verificação Real via API:** A chamada a `https://mnhzikgphdhohlhfsljz.supabase.co/functions/v1/admin-invite-user` retornou `404 Not Found`.
@@ -96,13 +114,6 @@ A Edge Function [supabase/functions/admin-invite-user/index.ts](file:///C:/Users
   ```bash
   npx supabase functions deploy admin-invite-user --project-ref mnhzikgphdhohlhfsljz
   ```
-
-### Garantias Implementadas no Código da Função:
-1. **Autenticação:** Exige o token JWT do chamador no header `Authorization: Bearer <token>`.
-2. **Autorização:** Consulta `public.profiles` com privilégios de serviço e confirma se `role === 'global_admin'`. Se o chamador for um usuário comum, retorna `403 Forbidden`.
-3. **Higienização de Papel:** Novos usuários convidados recebem **obrigatoriamente o papel `social_worker`**.
-4. **Disparo do Convite:** Invoca `auth.admin.inviteUserByEmail(email, { data: { full_name, phone, role: 'social_worker' } })`.
-5. **Auditoria:** Grava evento forense `admin.user_invited` na tabela `public.audit_logs`.
 
 ---
 
@@ -113,6 +124,6 @@ A Edge Function [supabase/functions/admin-invite-user/index.ts](file:///C:/Users
 | **Conta de Janaína Lima** | Validada via `sql_schema_validator.js` | Autenticação com sucesso (UUID `0d8250e0-c0c8-4385-b129-24ef6ccd29e4`) | **Concluído e Operacional** |
 | **Papel `global_admin`** | Validada via `rls_simulation_suite.js` (Testes 13 e 14) | Confirmado `role = 'global_admin'` no perfil remoto | **Concluído e Operacional** |
 | **Migrações 01 a 06** | 100% validadas via suíte automatizada | Tabelas criadas, RLS ativo, triggers de auditoria presentes | **Concluído e Operacional** |
+| **CORS & Contrato Edge Function** | Validada via `edge_function_invite_test.js` | 404 (Aguardando deploy com `SUPABASE_ACCESS_TOKEN`) | **Código Pronto e Testado** |
 | **Site URL & Redirects** | Documentada em contratos | Bloqueado na CLI (requer ajuste manual no Dashboard) | **Ação Manual Documentada** |
 | **Cadastro Público** | `enable_signup = false` em `config.toml` | Requer desmarcação do toggle no painel Auth | **Ação Manual Documentada** |
-| **Edge Function `admin-invite-user`** | 100% testada na suíte (Testes 15 e 16) | 404 (Aguardando deploy com `SUPABASE_ACCESS_TOKEN`) | **Código Pronto / Deploy Pendente** |
