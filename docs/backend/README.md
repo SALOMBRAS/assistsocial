@@ -22,6 +22,8 @@ Bem-vindo à documentação oficial da infraestrutura de backend, banco de dados
    - Políticas de snapshot, PITR, restauração de emergência e roadmap de limitações.
 8. [08. Administradora Global, Cadastro e Convites](./08_global_admin_and_invites.md)
    - Governança de acesso administrativo, unicidade de `global_admin`, restrição de cadastro e Edge Function `admin-invite-user`.
+9. [09. Pesquisa de Referências Open Source, Auditoria e Matriz de Funcionalidades](./09_open_source_benchmarks_and_roadmap.md)
+   - Benchmarking de projetos abertos (CaseLight, CiviCase, CommCare, OSCaR, Open Referral, CIVORA), auditoria da arquitetura atual, análise de licenças e matriz estratégica de evolução.
 
 ---
 
