@@ -52,6 +52,7 @@ export interface Database {
           phone: string | null
           avatar_url: string | null
           role: UserRole | string
+          must_change_password: boolean
           created_at: string
           updated_at: string
         }
@@ -62,6 +63,7 @@ export interface Database {
           phone?: string | null
           avatar_url?: string | null
           role?: UserRole | string
+          must_change_password?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -72,6 +74,7 @@ export interface Database {
           phone?: string | null
           avatar_url?: string | null
           role?: UserRole | string
+          must_change_password?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -289,6 +292,57 @@ export interface Database {
           created_at?: string
         }
         Update: never // Audit logs are immutable
+      }
+    }
+    Functions: {
+      get_dashboard_analytics: {
+        Args: {
+          p_period?: 'today' | 'week' | 'month' | 'all'
+        }
+        Returns: {
+          period: string
+          total_activities: number
+          completed_activities: number
+          pending_activities: number
+          overdue_activities: number
+          not_completed_activities: number
+          rescheduled_activities: number
+          cancelled_activities: number
+          completion_rate_percent: number
+          by_category: {
+            atendimento: number
+            visita_domiciliar: number
+            elaboracao_relatorio: number
+            reuniao: number
+            outros: number
+          }
+        }
+      }
+      get_admin_system_metrics: {
+        Args: Record<string, never>
+        Returns: {
+          total_professionals: number
+          total_activities: number
+          total_documents: number
+          total_active_shares: number
+          generated_at: string
+        }
+      }
+      complete_first_password_change: {
+        Args: {
+          p_new_password: string
+        }
+        Returns: {
+          success: boolean
+          message: string
+        }
+      }
+      mark_first_password_changed: {
+        Args: Record<string, never>
+        Returns: {
+          success: boolean
+          message: string
+        }
       }
     }
   }

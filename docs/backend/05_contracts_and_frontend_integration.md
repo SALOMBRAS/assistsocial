@@ -146,3 +146,43 @@ const { data, error } = await supabase.functions.invoke('admin-invite-user', {
 ### Comportamento Remoto Auditado:
 - Enquanto a Edge Function não estiver publicada na nuvem (`404 Not Found`), o frontend exibe aviso amigável ao usuário.
 - Após a publicação via CLI com `SUPABASE_ACCESS_TOKEN` (`npx supabase functions deploy admin-invite-user --project-ref mnhzikgphdhohlhfsljz`), o convite emitirá e-mail com papel forçado `social_worker`.
+
+---
+
+## 7. Contrato de Indicadores Analíticos Seguros (RPC `get_dashboard_analytics`)
+
+Para substituir o cálculo lento no cliente por agregações de alta performance e privacidade no servidor:
+
+### Chamada no Frontend:
+```typescript
+const { data, error } = await supabase.rpc('get_dashboard_analytics', {
+  p_period: 'month' // Opções: 'today' | 'week' | 'month' | 'all' (padrão: 'month')
+});
+```
+
+### Contrato de Retorno JSON:
+```typescript
+interface DashboardAnalytics {
+  period: 'today' | 'week' | 'month' | 'all';
+  total_activities: number;
+  completed_activities: number;
+  pending_activities: number;
+  overdue_activities: number; // Atividades pendentes com starts_at < now()
+  not_completed_activities: number;
+  rescheduled_activities: number;
+  cancelled_activities: number;
+  completion_rate_percent: number; // Ex: 66.7
+  by_category: {
+    atendimento: number;
+    visita_domiciliar: number;
+    elaboracao_relatorio: number;
+    reuniao: number;
+    outros: number;
+  };
+}
+```
+
+### Garantias de RLS e Sigilo Ético:
+- A função executa como `SECURITY INVOKER`, herdando as políticas de RLS da tabela `activities`.
+- O usuário logado só consegue visualizar números agregados de suas próprias atividades ou daquelas compartilhadas ativamente com ele (`can_access_resource`).
+- Nenhum identificador, nome de família ou dado confidencial é exposto no payload analítico.

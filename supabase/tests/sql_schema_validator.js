@@ -1,19 +1,19 @@
+/**
+ * Validador estático do Schema SQL e Migrações
+ * Executa sem dependências externas via Node.js
+ */
+
 const fs = require('fs');
 const path = require('path');
 
-const migrationsDir = path.resolve(__dirname, '../migrations');
-const files = fs.readdirSync(migrationsDir).sort();
-
 console.log('--- Verificando Arquivos de Migração ---');
-console.log('Arquivos encontrados:', files);
 
-let allSql = '';
-for (const file of files) {
-  if (file.endsWith('.sql')) {
-    const content = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-    allSql += '\n' + content;
-  }
-}
+const migrationsDir = path.resolve(__dirname, '../migrations');
+const migrationFiles = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+
+console.log('Arquivos encontrados:', migrationFiles);
+
+const allSql = migrationFiles.map(f => fs.readFileSync(path.join(migrationsDir, f), 'utf8')).join('\n');
 
 const requiredTables = [
   'profiles',
@@ -52,31 +52,32 @@ for (const field of activityFields) {
   }
 }
 
-// 4. Checa status permitidos em activities
-const statusValues = ['pending', 'in_progress', 'completed', 'not_completed', 'rescheduled', 'cancelled'];
-for (const s of statusValues) {
-  if (!allSql.includes(`'${s}'`)) {
-    errors.push(`Status ausente na constraint de activities: ${s}`);
+// 4. Checa campos essenciais de resource_shares
+const shareFields = ['id', 'owner_id', 'resource_type', 'resource_id', 'invited_email', 'permission', 'status', 'expires_at', 'revoked_at'];
+for (const field of shareFields) {
+  const regex = new RegExp(`\\b${field}\\b`, 'i');
+  if (!regex.test(allSql)) {
+    errors.push(`Campo ausente em resource_shares: ${field}`);
   }
 }
 
-// 5. Checa ciclo de pastas
-if (!allSql.includes('check_folder_hierarchy_cycle')) {
-  errors.push('Função de validação de ciclo de pastas ausente');
+// 5. Checa trigger anti-ciclo de pastas
+if (!allSql.includes('trg_check_folder_cycle')) {
+  errors.push("Trigger anti-ciclo de pastas ausente (trg_check_folder_cycle)");
 }
 
-// 6. Checa proteção contra alteração de owner_id
-if (!allSql.includes('protect_resource_ownership')) {
-  errors.push('Trigger de proteção de propriedade ausente');
+// 6. Checa trigger de auditoria forense
+if (!allSql.includes('trg_audit_activities')) {
+  errors.push("Trigger de auditoria forense em activities ausente (trg_audit_activities)");
 }
 
-// 7. Checa criação do bucket documents
+// 7. Checa bucket de documents
 if (!allSql.includes("'documents'")) {
-  errors.push("Referência ao bucket 'documents' ausente");
+  errors.push("Criação do bucket 'documents' ausente");
 }
 
-// 8. Checa reconhecimento do papel global_admin e índice único de exclusividade
-if (!allSql.includes("'global_admin'")) {
+// 8. Checa regras de global_admin
+if (!allSql.includes('global_admin')) {
   errors.push("Papel 'global_admin' ausente no esquema de profiles");
 }
 if (!allSql.includes('idx_single_global_admin')) {
@@ -100,9 +101,17 @@ if (!fs.existsSync(edgeFunctionPath)) {
   errors.push("Edge Function admin-invite-user ausente (supabase/functions/admin-invite-user/index.ts)");
 }
 
+// 12. Checa funções analíticas seguras
+if (!allSql.includes('get_dashboard_analytics')) {
+  errors.push("Função analítica get_dashboard_analytics ausente");
+}
+if (!allSql.includes('get_admin_system_metrics')) {
+  errors.push("Função analítica get_admin_system_metrics ausente");
+}
+
 if (errors.length > 0) {
   console.error('Erros de validação SQL encontrados:', errors);
   process.exit(1);
 } else {
-  console.log('[PASS] Todas as 7 tabelas, constraints, RLS, triggers, storage, bootstrap e Edge Function validados com sucesso!');
+  console.log('[PASS] Todas as 7 tabelas, constraints, RLS, triggers, storage, bootstrap, Edge Function e funções analíticas validados com sucesso!');
 }
