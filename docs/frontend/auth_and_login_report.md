@@ -142,3 +142,145 @@ Implementada diferenciação robusta dos erros do SDK `@supabase/supabase-js`:
 - **Branch da Alteração:** [`fix/edge-function-invite-contract`](https://github.com/SALOMBRAS/assistsocial/tree/fix/edge-function-invite-contract)
 - **Squash Merge na `main`:** Commit `4c21ec0` (`fix(admin): update invite payload to { full_name, email, phone } and enhance edge function error diagnostics (#14)`).
 - **Deployment Atualizado na Vercel:** `dpl_HUChdbdk28NMWygK2Br3CevzrSdy` (Status: `READY`), propagado para `assistsocial-app.vercel.app`, `assistsocial-gestao.vercel.app` e `assistsocial-br.vercel.app`.
+
+
+---
+
+## 8. Evolução de Frontend, Benchmarks Open Source e Melhorias Faseadas
+
+> **Conforme diretrizes de usabilidade, auditoria e benchmarks de [jana 1.txt](file:///C:/Users/Londres31/Downloads/prompt/jana%201.txt)**  
+> **Status:** Todas as 5 Fases Entregues, Testadas e Integradas via Pull Requests com Squash and Merge  
+> **Repositório Oficial:** [SALOMBRAS/assistsocial](https://github.com/SALOMBRAS/assistsocial)
+
+### 8.1. Referências Pesquisadas e Lições Aprendidas
+
+1. **CaseLight (`Lighthouse-Nonprofit/caselight` - Licença MIT):**
+   - *Análise:* Painéis ágeis de gestão de casos, visualização de tarefas diárias/semanais e destaque de pendências críticas.
+   - *Aproveitamento:* Alternância dinâmica entre 4 modos de agenda (Mês, Semana, Dia e Lista) e identificação ostensiva de atividades em atraso.
+2. **CiviCRM / CiviCase (`civicrm/civicrm-core` - Licença AGPLv3):**
+   - *Análise:* Linha do tempo de atendimentos multissetoriais e associação de documentos e pareceres a um processo continuado.
+   - *Aproveitamento:* Implementação **100% limpa (cleanroom)** em React/TypeScript sem cópia de código AGPL, estruturando a cronologia dos atendimentos em linha do tempo profissional.
+3. **CommCare HQ (`dimagi/commcare-hq` - Licença BSD-3-Clause):**
+   - *Análise:* Plataforma para agentes de campo em visitas domiciliares, com relatórios sintéticos e acompanhamento de produtividade.
+   - *Aproveitamento:* Módulo de relatórios com totais de êxito, exportação de dados em CSV e formatação para impressão em papel.
+4. **OSCaR (Open-Source Case Record):**
+   - *Análise:* Planos de acompanhamento familiar (PAIF/PAEFI) e encaminhamentos intersetoriais com monitoramento de metas.
+   - *Aproveitamento:* Seção de "Próximas Ações Planejadas" na linha do tempo com contagem regressiva de prazos.
+5. **Open Referral / HSDS (`openreferral/specification` - Licença CC-BY 4.0):**
+   - *Análise:* Especificação internacional padronizada para diretórios de serviços humanos (`Human Services Data Specification`).
+   - *Aproveitamento:* Construção do Diretório Municipal de Serviços Sociais com campos completos de município, organização, tipologia SUAS, público atendido, horários e acessibilidade PCD.
+6. **CIVORA (`alrazihi/civora` - Licença MIT):**
+   - *Análise:* Auditoria de processos e verificação objetiva de requisitos com controle humano.
+   - *Aproveitamento:* Módulo de Revisão Assistida de Documentos, com checklist obrigatório de conformidade técnica SUAS/CFESS e carimbo do profissional revisor.
+
+---
+
+### 8.2. Funcionalidades Existentes que Foram Integralmente Preservadas
+
+A auditoria inicial comprovou a estabilidade e manteve 100% operacionais os seguintes recursos:
+- **Autenticação e Sessão:** Gerenciamento de sessão pelo Supabase Auth em [`AuthContext.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/contexts/AuthContext.tsx) com proteção de rotas públicas, privadas e administrativas.
+- **Painel Institucional WhatsApp:** Solicitação de acesso em [`RegisterPage.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/pages/RegisterPage.tsx) sem permitir cadastro aberto descontrolado.
+- **Painel Administrativo de Usuários:** Gestão de equipe em [`AdminUsersPage.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/pages/AdminUsersPage.tsx) com payload padronizado e tratamento robusto de erros HTTP da Edge Function.
+- **Armazenamento Seguro de Documentos:** Gestão de pastas e arquivos no bucket privado com Row Level Security (RLS) e URLs assinadas.
+- **Métricas e CRUD de Atividades:** Atendimentos, visitas domiciliares, justificativa de não realização e reagendamento com dados reais do Supabase.
+- **Identidade Visual e Design Tokens:** Rosa principal (`#F04491`), rosa secundário (`#F58BB5`), rosa claro (`#FCE5ED`), fundo (`#FFF9FB`), texto principal (`#28232A`), verde sucesso (`#36A879`) e tipografia oficial *Plus Jakarta Sans*.
+
+---
+
+### 8.3. Detalhamento das Melhorias Implementadas por PR
+
+#### PR 1 (PR #5 no GitHub) — Agenda Inteligente
+- **Arquivo Modificado:** [`apps/web/src/components/CalendarView.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/components/CalendarView.tsx)
+- **Recursos Adicionados:**
+  - 4 modos de visualização alternáveis: **Mês** (grade com contadores), **Semana** (7 colunas do domingo ao sábado), **Dia** (lista horária com ações) e **Lista** (cronológica agrupada).
+  - Filtros instantâneos por período (*Todo Período*, *Hoje*, *Esta Semana*, *Este Mês*) e status (*Todos*, *Pendentes*, *Atrasadas*, *Concluídas*).
+  - Identificação de atividades atrasadas com card vermelho, ícone de alerta e banner superior de atenção.
+  - Cards de resumo do dia (*Atividades Hoje*, *Pendentes Hoje*, *Concluídas Hoje*, *Atrasadas Geral*).
+  - Ações rápidas inline para concluir atividade diretamente no Supabase e acionar modal de reagendamento.
+  - Estados vazios acolhedores com botão direto para cadastrar novo agendamento.
+
+#### PR 2 (PR #6 no GitHub) — Relatórios Executivos de Atividades
+- **Arquivo Criado:** [`apps/web/src/components/ReportsView.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/components/ReportsView.tsx)
+- **Recursos Adicionados:**
+  - Filtro por intervalo de datas (Data Inicial e Final) com atalhos rápidos (*Hoje*, *Últimos 7 dias*, *Este Mês*).
+  - Filtro por status operacional e categoria do SUAS.
+  - Totais analíticos reais: Concluídas, Pendentes, Atrasadas, Não Realizadas e Taxa de Resolução (%).
+  - Painel de distribuição visual por tipologia (Visitas, Atendimentos, Relatórios e Reuniões).
+  - Tabela detalhada de auditoria com justificativas de não realização.
+  - **Exportação CSV:** Arquivo gerado em conformidade RFC 4180 com codificação UTF-8 com BOM (compatível com Microsoft Excel sem problemas de acentuação).
+  - **Layout de Impressão (`@media print`):** Cabeçalho formal do SUAS, ocultação de botões de navegação e campo oficial para assinatura e carimbo CRESS.
+
+#### PR 3 (PR #7 no GitHub) — Diretório de Serviços Sociais (HSDS)
+- **Arquivo Criado:** [`apps/web/src/components/ServicesDirectoryView.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/components/ServicesDirectoryView.tsx)
+- **Recursos Adicionados:**
+  - Interface de consulta da rede socioassistencial (CRAS, CREAS, Centro POP, CAPS, Conselho Tutelar, Acolhimento).
+  - Filtros por município, categoria SUAS, público atendido e acessibilidade PCD.
+  - Cards informativos com endereço, horários regulares, formas de encaminhamento e documentação exigida.
+  - Modal com ficha técnica detalhada no padrão Open Referral / HSDS 3.0.
+  - Modal de proposta de novos equipamentos para demonstração do contrato de dados.
+  - **Transparência Técnica:** Banner oficial informando que a persistência relacional do diretório aguarda a liberação da tabela `social_services` pelo Terminal 2 (Backend).
+
+#### PR 4 (PR #8 no GitHub) — Linha do Tempo de Atendimento
+- **Arquivo Criado:** [`apps/web/src/components/CaseTimelineView.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/components/CaseTimelineView.tsx)
+- **Recursos Adicionados:**
+  - Trajetória cronológica contínua das intervenções e estudos de caso com ícones e cores por tipologia.
+  - Integração das atividades reais do assistente social com ordenação ascendente/descendente e filtros por tipo.
+  - Painel lateral de "Próximas Ações Planejadas" conectado às atividades pendentes no Supabase.
+  - Monitoramento da rede de encaminhamentos externos e status de devolutivas intersetoriais.
+  - Alinhamento de dados para futura vinculação com identificador familiar CadÚnico/NIS (tabela `cases`).
+
+#### PR 5 (PR #9 no GitHub) — Revisão Assistida de Documentos
+- **Arquivo Criado:** [`apps/web/src/components/DocumentReviewAssistant.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/components/DocumentReviewAssistant.tsx)
+- **Arquivo Modificado:** [`apps/web/src/components/DocumentsView.tsx`](file:///C:/Users/Londres31/Documents/DEV/apps/web/src/components/DocumentsView.tsx)
+- **Recursos Adicionados:**
+  - Checklist interativo de conformidade SUAS/CFESS:
+    1. Identificação completa do usuário e composição familiar (exige confirmação humana).
+    2. Relato circunstanciado da demanda e histórico de vulnerabilidade.
+    3. Parecer técnico socioassistencial fundamentado (exige confirmação humana).
+    4. Documentos probatórios anexados e legíveis.
+    5. Identificação e registro CRESS válido da profissional responsável (exige confirmação humana).
+  - Parecer de conferência editável para registro de observações técnicas.
+  - Declaração de responsabilidade técnica individual.
+  - Atualização do status `ai_analysis_status` no Supabase (`completed` vs `pending`).
+  - Filtro em `DocumentsView` para isolar documentos pendentes de conferência e selo visual "Conferido".
+  - **Garantia de Sigilo Profissional:** Operação 100% local no cliente; zero envio de laudos e dados sociais confidenciais para servidores externos de IA não auditados.
+
+---
+
+### 8.4. Tabela Oficial de PRs e Merges no GitHub
+
+Todas as etapas foram implementadas de maneira faseada, validadas localmente e integradas via Pull Request no GitHub com **Squash and Merge automático** via GitHub API, sem commits vazios ou artificiais:
+
+| PR # | Ramo (Branch) | Título da Pull Request | Commit na `main` | Status Real |
+| :---: | :--- | :--- | :---: | :---: |
+| **#1** | `docs/audit-remote-supabase-configuration` | docs(audit): update remote supabase configuration audit and integration contracts | `8bf3acd` | ✅ Merged |
+| **#2** | `feat/admin-invite-user-cors-hardening` | feat(backend): harden edge function cors, preflight and payload normalization | `e6d6293` | ✅ Merged |
+| **#3** | `docs/frontend-open-source-benchmarks` | docs(frontend): research open source benchmarks and social service patterns | `b147be0` | ✅ Merged |
+| **#5** | `feat/smart-agenda-improvements` | feat(calendar): implement smart agenda with day-week-month-list views and overdue tracking | `cafaf24` | ✅ Merged |
+| **#6** | `feat/activity-reports-and-export` | feat(reports): add activity reports view with date filters, csv export and print layout | `5488632` | ✅ Merged |
+| **#7** | `feat/social-services-directory` | feat(directory): add social services directory compliant with open referral hsds | `50a43be` | ✅ Merged |
+| **#8** | `feat/case-timeline` | feat(timeline): add social service case timeline and chronological care tracking | `0d07e43` | ✅ Merged |
+| **#9** | `feat/document-review-assistant` | feat(documents): implement assisted document review checklist and audit trail | `301441c` | ✅ Merged |
+
+---
+
+### 8.5. Resultados dos Testes Executados
+
+- **Compilação TypeScript (`tsc -b`):** Aprovada com **0 erros**.
+- **Linter de Código (`oxlint`):** Aprovado com **0 erros** em todos os 32 arquivos do projeto.
+- **Build de Produção (`vite build`):** Compilado com sucesso em **1.99 segundos**, gerando artefatos minificados em `apps/web/dist/`.
+- **Implantação na Vercel (Production):** Deploy ativo com status **READY** propagado para a infraestrutura de borda.
+- **Validação de Disponibilidade dos Domínios Oficiais:**
+  - `https://assistsocial-app.vercel.app` $ightarrow$ **HTTP 200 OK**
+  - `https://assistsocial-gestao.vercel.app` $ightarrow$ **HTTP 200 OK**
+  - `https://assistsocial-br.vercel.app` $ightarrow$ **HTTP 200 OK**
+- **Validação de Acesso Direto às Novas Telas:** Roteamento interno e navegação por abas (`dashboard`, `activities`, `calendar`, `reports`, `services`, `timeline`, `documents`, `team`, `settings`) funcionando sem travamentos ou quebras visuais.
+
+---
+
+### 8.6. Dependências Mapeadas para o Terminal 2 (Backend)
+
+Conforme a regra estrita de não alterar o backend a partir do Terminal 1, as seguintes integrações estão documentadas e aguardando implementação pelo Terminal 2:
+1. **Tabela `social_services` e Migrations:** Criar schema relacional compatível com HSDS (organização, contatos, horários, categorias e acessibilidade PCD) para substituição da matriz referencial por dados persistidos no PostgreSQL.
+2. **Tabela `cases` (Prontuários e Planos Familiares):** Criar identificador único de família (CadÚnico/NIS) para associar múltiplos registros de `activities` e `documents` a um caso específico na Linha do Tempo.
+3. **Deploy da Edge Function `admin-invite-user`:** Efetuar a publicação do código Deno no runtime remoto do Supabase através do Supabase CLI com token de acesso.
