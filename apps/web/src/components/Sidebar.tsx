@@ -11,9 +11,10 @@ import {
   LogOut,
   Sparkles,
   ShieldCheck,
+  FileSpreadsheet,
 } from 'lucide-react'
 
-export type NavTab = 'dashboard' | 'activities' | 'calendar' | 'documents' | 'team' | 'settings'
+export type NavTab = 'dashboard' | 'activities' | 'calendar' | 'reports' | 'documents' | 'services' | 'timeline' | 'team' | 'settings'
 
 interface SidebarProps {
   currentTab: NavTab
@@ -36,7 +37,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'dashboard', label: 'Painel Inicial', icon: <LayoutDashboard size={20} /> },
     { id: 'activities', label: 'Atividades', icon: <CalendarCheck size={20} />, badge: '5' },
     { id: 'calendar', label: 'Agenda & Visitas', icon: <Calendar size={20} /> },
-    { id: 'documents', label: 'Relatórios & Docs', icon: <FileText size={20} /> },
+    { id: 'reports', label: 'Relatórios', icon: <FileSpreadsheet size={20} /> },
+    { id: 'documents', label: 'Pastas & Docs', icon: <FileText size={20} /> },
     { id: 'team', label: 'Compartilhamentos', icon: <Users size={20} /> },
     { id: 'settings', label: 'Configurações', icon: <Settings size={20} /> },
   ]
