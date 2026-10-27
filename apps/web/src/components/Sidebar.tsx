@@ -12,6 +12,7 @@ import {
   Sparkles,
   ShieldCheck,
   FileSpreadsheet,
+  Building2,
 } from 'lucide-react'
 
 export type NavTab = 'dashboard' | 'activities' | 'calendar' | 'reports' | 'documents' | 'services' | 'timeline' | 'team' | 'settings'
@@ -38,6 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'activities', label: 'Atividades', icon: <CalendarCheck size={20} />, badge: '5' },
     { id: 'calendar', label: 'Agenda & Visitas', icon: <Calendar size={20} /> },
     { id: 'reports', label: 'Relatórios', icon: <FileSpreadsheet size={20} /> },
+    { id: 'services', label: 'Diretório de Serviços', icon: <Building2 size={20} /> },
     { id: 'documents', label: 'Pastas & Docs', icon: <FileText size={20} /> },
     { id: 'team', label: 'Compartilhamentos', icon: <Users size={20} /> },
     { id: 'settings', label: 'Configurações', icon: <Settings size={20} /> },

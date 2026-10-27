@@ -20,6 +20,7 @@ import { ShareModal } from '../components/ShareModal'
 import { BottomNav } from '../components/BottomNav'
 import { CalendarView } from '../components/CalendarView'
 import { ReportsView } from '../components/ReportsView'
+import { ServicesDirectoryView } from '../components/ServicesDirectoryView'
 import { DocumentsView } from '../components/DocumentsView'
 import { TeamView } from '../components/TeamView'
 import { useAuth } from '../contexts/AuthContext'
@@ -486,6 +487,9 @@ export const MainDashboard: React.FC = () => {
               profileName={profileDisplayName}
             />
           )}
+
+          {/* VIEW: SERVICES DIRECTORY (HSDS) */}
+          {currentTab === 'services' && <ServicesDirectoryView />}
 
           {/* VIEW: DOCUMENTS & STORAGE */}
           {currentTab === 'documents' && <DocumentsView />}
