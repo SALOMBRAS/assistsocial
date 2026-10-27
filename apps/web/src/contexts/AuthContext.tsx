@@ -2,6 +2,10 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabaseClient'
 import type { Database } from '../types/supabase'
+import {
+  executeFirstAccessPasswordChange,
+  type PasswordChangeResult,
+} from '../services/firstAccessService'
 
 export type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -10,6 +14,7 @@ interface AuthContextType {
   session: Session | null
   profile: Profile | null
   isAdmin: boolean
+  mustChangePassword: boolean
   loading: boolean
   isRecoveryMode: boolean
   setIsRecoveryMode: (val: boolean) => void
@@ -18,6 +23,7 @@ interface AuthContextType {
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: Error | null }>
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>
+  completeFirstAccess: (newPassword: string, confirmation: string) => Promise<PasswordChangeResult>
   refreshProfile: () => Promise<void>
 }
 
@@ -47,6 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           full_name: userEmail ? userEmail.split('@')[0] : 'Assistente Social',
           email: userEmail || null,
           role: 'social_worker',
+          must_change_password: false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }
@@ -127,6 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: email,
         phone: phone || null,
         role: 'social_worker',
+        must_change_password: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -166,6 +174,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error }
   }
 
+  const completeFirstAccess = async (
+    newPassword: string,
+    confirmation: string
+  ): Promise<PasswordChangeResult> => {
+    const result = await executeFirstAccessPasswordChange(supabase, newPassword, confirmation)
+    if (result.success && user) {
+      await fetchProfile(user.id, user.email)
+    }
+    return result
+  }
+
   const refreshProfile = async () => {
     if (user) {
       await fetchProfile(user.id, user.email)
@@ -176,6 +195,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // confirmado pelos dados reais do Supabase (sem depender de correspondência direta de e-mail)
   const isAdmin = profile?.role === 'global_admin'
 
+  // Indicador de primeiro acesso obrigatório vindo diretamente da coluna no perfil autenticado
+  const mustChangePassword = Boolean(profile?.must_change_password)
+
   return (
     <AuthContext.Provider
       value={{
@@ -183,6 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         session,
         profile,
         isAdmin,
+        mustChangePassword,
         loading,
         isRecoveryMode,
         setIsRecoveryMode,
@@ -191,6 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut,
         resetPassword,
         updatePassword,
+        completeFirstAccess,
         refreshProfile,
       }}
     >
