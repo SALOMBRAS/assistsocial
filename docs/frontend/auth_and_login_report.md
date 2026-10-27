@@ -115,3 +115,30 @@ Confirmadas e criptografadas no projeto `assistsocial` na Vercel para o target `
 ## 6. Histórico de Commits e Sincronização com o GitHub
 
 O repositório [`SALOMBRAS/assistsocial`](https://github.com/SALOMBRAS/assistsocial) está com a branch `main` sincronizada com 14 commits faseados (com squash merges sequenciais numerados de `#1` a `#13`), preservando a autoria e garantindo o rastreamento das contribuições no GitHub.
+
+
+---
+
+## 7. Correção do Contrato de Convite e Diagnóstico de Erros da Edge Function
+
+### 7.1. Ajuste do Contrato do Payload
+- Na chamada `supabase.functions.invoke('admin-invite-user', ...)`, o payload foi padronizado estritamente para `{ full_name, email, phone }`.
+- O valor da variável `fullName` do formulário é convertido para `full_name`.
+- O parâmetro `role` foi removido do corpo da requisição cliente; a função no servidor atribui o papel seguro padrão `social_worker`.
+- Os rótulos visuais amigáveis da interface foram preservados integralmente.
+
+### 7.2. Diagnóstico Estruturado de Erros (`parseEdgeFunctionError`)
+Implementada diferenciação robusta dos erros do SDK `@supabase/supabase-js`:
+- **`FunctionsHttpError`:** Extração segura do código HTTP (`status`) e do corpo JSON/texto retornado pelo endpoint, sem expor tokens ou cabeçalhos sensíveis:
+  - `404 Not Found`: "A Edge Function 'admin-invite-user' está indisponível ou ainda não foi publicada no projeto Supabase (HTTP 404)."
+  - `401 / 403`: "Sessão expirada ou acesso não autorizado (HTTP 401/403). Apenas a administradora global autenticada pode emitir convites."
+  - `400 / 422`: Mensagem segura de validação de dados ou e-mail.
+  - `409 Conflict`: "Este endereço de e-mail já possui um convite pendente ou já está cadastrado no sistema (HTTP 409)."
+  - `500+`: Mensagem amigável de erro interno do servidor com o detalhe seguro retornado.
+- **`FunctionsRelayError`:** "Falha no gateway do Supabase ao repassar a requisição para a Edge Function."
+- **`FunctionsFetchError`:** "Falha de comunicação ou conexão de rede com o endpoint da Edge Function."
+
+### 7.3. Rastreabilidade Git e Deploy
+- **Branch da Alteração:** [`fix/edge-function-invite-contract`](https://github.com/SALOMBRAS/assistsocial/tree/fix/edge-function-invite-contract)
+- **Squash Merge na `main`:** Commit `4c21ec0` (`fix(admin): update invite payload to { full_name, email, phone } and enhance edge function error diagnostics (#14)`).
+- **Deployment Atualizado na Vercel:** `dpl_HUChdbdk28NMWygK2Br3CevzrSdy` (Status: `READY`), propagado para `assistsocial-app.vercel.app`, `assistsocial-gestao.vercel.app` e `assistsocial-br.vercel.app`.
