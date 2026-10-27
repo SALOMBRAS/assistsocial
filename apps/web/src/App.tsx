@@ -4,8 +4,9 @@ import { AuthProvider } from './contexts/AuthContext'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { FirstAccessPage } from './pages/FirstAccessPage'
 import { MainDashboard } from './pages/MainDashboard'
-import { ProtectedRoute, PublicOnlyRoute, AdminRoute } from './pages/Guards'
+import { ProtectedRoute, PublicOnlyRoute, AdminRoute, FirstAccessRoute } from './pages/Guards'
 import { AdminUsersPage } from './pages/AdminUsersPage'
 
 export function App() {
@@ -22,7 +23,12 @@ export function App() {
           {/* Recuperação de Senha (acessível publicamente e no callback de recuperação) */}
           <Route path="/recuperar-senha" element={<ResetPasswordPage />} />
 
-          {/* Rotas Privadas (acessíveis apenas quando autenticado) */}
+          {/* Rota Exclusiva de Primeiro Acesso (Troca Obrigatória de Senha) */}
+          <Route element={<FirstAccessRoute />}>
+            <Route path="/primeiro-acesso" element={<FirstAccessPage />} />
+          </Route>
+
+          {/* Rotas Privadas (acessíveis apenas quando autenticado e sem pendência de troca) */}
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<MainDashboard />} />
           </Route>
