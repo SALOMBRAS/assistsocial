@@ -24,6 +24,8 @@ Bem-vindo à documentação oficial da infraestrutura de backend, banco de dados
    - Governança de acesso administrativo, unicidade de `global_admin`, restrição de cadastro e Edge Function `admin-invite-user`.
 9. [09. Pesquisa de Referências Open Source, Auditoria e Matriz de Funcionalidades](./09_open_source_benchmarks_and_roadmap.md)
    - Benchmarking de projetos abertos (CaseLight, CiviCase, CommCare, OSCaR, Open Referral, CIVORA), auditoria da arquitetura atual, análise de licenças e matriz estratégica de evolução.
+10. [10. Cadastro Administrativo sem E-mail e Troca Obrigatória de Senha](./10_admin_create_user_and_first_access.md)
+   - Especificação canônica da Edge Function `admin-create-user`, geração de senha temporária de uso único, eliminação de disparo de e-mails, RPCs seguras de troca de senha no primeiro acesso e governança anti-órfãos.
 
 ---
 
@@ -35,6 +37,7 @@ Bem-vindo à documentação oficial da infraestrutura de backend, banco de dados
 - **Chave Pública da Aplicação:** `sb_publishable_ptMlzvTfem36GITlkwZBZQ_ZuDvbkyG`
 - **Diretório das Migrações:** `supabase/migrations/`
 - **Script de Bootstrap:** `supabase/bootstrap_global_admin.sql`
-- **Edge Function de Convite:** `supabase/functions/admin-invite-user/index.ts`
+- **Edge Function Principal:** `supabase/functions/admin-create-user/index.ts`
+- **Edge Function de Compatibilidade:** `supabase/functions/admin-invite-user/index.ts`
 - **Contratos TypeScript:** `supabase/types.ts`
 - **Suíte de Testes Automatizada:** `supabase/tests/`

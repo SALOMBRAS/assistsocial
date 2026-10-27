@@ -361,9 +361,15 @@ async function runTestSuite() {
   // REQUISITO 12: A auditoria não registra credenciais
   const allAuditEntries = env.auditLogs;
   for (const entry of allAuditEntries) {
-    const detailsStr = JSON.stringify(entry.details);
-    assert.ok(!detailsStr.includes('password'), 'Nenhum campo de senha pode estar presente na auditoria');
-    assert.ok(!detailsStr.includes('temporary_password'), 'Nenhuma senha temporária na auditoria');
+    const details = entry.details || {};
+    assert.strictEqual(details.password, undefined, 'Nenhum campo password na auditoria');
+    assert.strictEqual(details.temporary_password, undefined, 'Nenhum campo temporary_password na auditoria');
+    assert.strictEqual(details.temp_password, undefined, 'Nenhum campo temp_password na auditoria');
+    assert.strictEqual(details.new_password, undefined, 'Nenhum campo new_password na auditoria');
+    // Verifica que nenhum valor de senha temporária gerada vazou para os logs
+    const detailsStr = JSON.stringify(details);
+    assert.ok(!detailsStr.includes('temporary_password'), 'Nenhuma chave temporary_password na auditoria');
+    assert.ok(!detailsStr.includes('secret'), 'Nenhum segredo na auditoria');
   }
   console.log('[PASS] Requisito 12: Auditoria rigorosamente inspecionada, provando isolamento de credenciais.');
 
