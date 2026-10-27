@@ -7,12 +7,8 @@ import {
   FileText,
   Send,
   Calendar,
-  AlertCircle,
-  CheckCircle2,
-  FileCheck,
   Plus,
   Filter,
-  ArrowRight,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react'

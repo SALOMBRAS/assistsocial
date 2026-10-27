@@ -12,7 +12,9 @@ import {
   HardDrive,
   AlertCircle,
   CheckCircle2,
+  FileCheck,
 } from 'lucide-react'
+import { DocumentReviewAssistant } from './DocumentReviewAssistant'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 import { DeleteConfirmModal } from './ActionModals'
@@ -66,6 +68,31 @@ export const DocumentsView: React.FC = () => {
 
   // Share modal
   const [shareTarget, setShareTarget] = useState<{ type: 'folder' | 'document'; id: string; name: string } | null>(null)
+
+  // Document Review state
+  const [reviewTarget, setReviewTarget] = useState<DocumentItem | null>(null)
+  const [documentFilter, setDocumentFilter] = useState<'all' | 'pending' | 'reviewed'>('all')
+
+  const handleSaveReview = async (docId: string, isCompleted: boolean) => {
+    const newStatus = isCompleted ? 'completed' : 'pending'
+    try {
+      await (supabase.from('documents') as any)
+        .update({ ai_analysis_status: newStatus })
+        .eq('id', docId)
+
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === docId ? { ...d, ai_analysis_status: newStatus } : d))
+      )
+      showToast(
+        isCompleted
+          ? 'Conferência técnica do documento concluída com sucesso! 📄'
+          : 'Rascunho de conferência salvo localmente.'
+      )
+    } catch (err) {
+      console.error('Erro ao atualizar status de revisão:', err)
+      showToast('Erro ao atualizar status no banco.', true)
+    }
+  }
 
   const showToast = (msg: string, isError = false) => {
     if (isError) {
@@ -472,12 +499,57 @@ export const DocumentsView: React.FC = () => {
 
           {/* Documents List */}
           {documents.length > 0 && (
-            <div>
-              <h3 className="text-xs font-bold text-[#827780] uppercase tracking-wider mb-3">
-                Arquivos ({documents.length})
-              </h3>
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <h3 className="text-xs font-bold text-[#827780] uppercase tracking-wider">
+                  Arquivos ({documents.length})
+                </h3>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <button
+                    onClick={() => setDocumentFilter('all')}
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                      documentFilter === 'all'
+                        ? 'bg-[#28232A] text-white'
+                        : 'bg-white text-[#827780] border border-[#F6E4EC]'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    onClick={() => setDocumentFilter('pending')}
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                      documentFilter === 'pending'
+                        ? 'bg-[#EA580C] text-white'
+                        : 'bg-white text-[#827780] border border-[#F6E4EC]'
+                    }`}
+                  >
+                    Pendentes de Revisão
+                  </button>
+                  <button
+                    onClick={() => setDocumentFilter('reviewed')}
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                      documentFilter === 'reviewed'
+                        ? 'bg-[#36A879] text-white'
+                        : 'bg-white text-[#827780] border border-[#F6E4EC]'
+                    }`}
+                  >
+                    Revisados
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {documents.map((doc) => (
+                {documents
+                  .filter((doc) => {
+                    if (documentFilter === 'pending') {
+                      return doc.ai_analysis_status !== 'completed' && doc.ai_analysis_status !== 'reviewed'
+                    }
+                    if (documentFilter === 'reviewed') {
+                      return doc.ai_analysis_status === 'completed' || doc.ai_analysis_status === 'reviewed'
+                    }
+                    return true
+                  })
+                  .map((doc) => (
                   <div
                     key={doc.id}
                     className="p-4 bg-white rounded-2xl border border-[#F6E4EC] shadow-sm hover:border-[#F58BB5] hover:shadow-md transition-all flex flex-col justify-between group"
@@ -508,6 +580,13 @@ export const DocumentsView: React.FC = () => {
                       </button>
 
                       <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setReviewTarget(doc)}
+                          title="Revisão de Conformidade Técnica"
+                          className="p-1 text-[#827780] hover:text-[#36A879] hover:bg-[#EBF7F1] rounded-lg cursor-pointer"
+                        >
+                          <FileCheck size={14} />
+                        </button>
                         <button
                           onClick={() => setShareTarget({ type: 'document', id: doc.id, name: doc.display_name })}
                           title="Compartilhar documento"
@@ -628,6 +707,16 @@ export const DocumentsView: React.FC = () => {
         title={`Excluir ${deleteTarget?.type === 'folder' ? 'Pasta' : 'Documento'}?`}
         description={`Tem certeza que deseja excluir "${deleteTarget?.name}"? Esta ação removerá o registro e os arquivos associados.`}
       />
+
+      {/* Document Review Assistant Modal */}
+      {reviewTarget && (
+        <DocumentReviewAssistant
+          isOpen={Boolean(reviewTarget)}
+          document={reviewTarget}
+          onClose={() => setReviewTarget(null)}
+          onSaveReview={handleSaveReview}
+        />
+      )}
 
       {/* Share Modal */}
       {shareTarget && (
