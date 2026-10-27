@@ -464,6 +464,7 @@ export const MainDashboard: React.FC = () => {
           {currentTab === 'calendar' && (
             <CalendarView
               activities={activities}
+              loading={loading}
               onOpenNewActivity={() => {
                 setEditingActivity(null)
                 setIsModalOpen(true)
@@ -472,6 +473,8 @@ export const MainDashboard: React.FC = () => {
                 setEditingActivity(activity)
                 setIsModalOpen(true)
               }}
+              onToggleComplete={handleToggleComplete}
+              onReschedule={(activity) => setRescheduleTarget(activity)}
             />
           )}
 
