@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { X, AlertTriangle, Calendar, AlertCircle } from 'lucide-react'
+import { useModalA11y } from '../hooks/useModalA11y'
 
 // Modal para Justificar Não Realização
 interface FailureReasonModalProps {
@@ -17,6 +18,13 @@ export const FailureReasonModal: React.FC<FailureReasonModalProps> = ({
 }) => {
   const [reason, setReason] = useState('')
 
+  useModalA11y({
+    isOpen,
+    onClose,
+    closeOnEscape: true,
+    preventScroll: true,
+  })
+
   if (!isOpen) return null
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -28,18 +36,30 @@ export const FailureReasonModal: React.FC<FailureReasonModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-[#F6E4EC] overflow-hidden p-6">
-        <div className="flex items-center justify-between mb-4">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="failure-modal-title"
+    >
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-[#F6E4EC] overflow-hidden p-6 max-h-[90dvh] flex flex-col">
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#F6E4EC]">
           <div className="flex items-center gap-2.5 text-[#D93025]">
             <AlertCircle size={20} />
-            <h3 className="font-bold text-base text-[#28232A]">Motivo da Não Realização</h3>
+            <h3 id="failure-modal-title" className="font-bold text-base text-[#28232A]">
+              Motivo da Não Realização
+            </h3>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-[#827780] hover:bg-[#FCE5ED] hover:text-[#F04491] cursor-pointer"
+            aria-label="Fechar"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[#827780] hover:bg-[#FCE5ED] hover:text-[#F04491] cursor-pointer transition-colors"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
@@ -47,27 +67,27 @@ export const FailureReasonModal: React.FC<FailureReasonModalProps> = ({
           Por favor, justifique o motivo pelo qual a atividade <strong>"{activityTitle}"</strong> não pôde ser realizada.
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1">
           <textarea
             required
             rows={3}
             placeholder="Ex: Usuário ausente no domicílio / Falta de transporte institucional / Remanejamento de urgência..."
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            className="w-full px-3.5 py-2.5 text-xs md:text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] placeholder:text-[#827780]/60 focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491]"
+            className="w-full px-3.5 py-2.5 text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] placeholder:text-[#827780]/60 focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491]"
           />
 
           <div className="flex items-center justify-end gap-2.5 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-[#827780] hover:bg-[#FFF9FB] rounded-xl cursor-pointer"
+              className="px-4 py-2.5 min-h-[44px] text-xs font-semibold text-[#827780] hover:bg-[#FFF9FB] rounded-xl cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-xs font-bold bg-[#D93025] hover:bg-[#C5221F] text-white rounded-xl shadow-md transition-all cursor-pointer"
+              className="px-5 py-2.5 min-h-[44px] text-xs font-bold bg-[#D93025] hover:bg-[#C5221F] text-white rounded-xl shadow-md transition-all cursor-pointer"
             >
               Registrar Motivo
             </button>
@@ -96,6 +116,13 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   const [startTime, setStartTime] = useState('09:00')
   const [endTime, setEndTime] = useState('10:00')
 
+  useModalA11y({
+    isOpen,
+    onClose,
+    closeOnEscape: true,
+    preventScroll: true,
+  })
+
   if (!isOpen) return null
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -107,18 +134,30 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-[#F6E4EC] overflow-hidden p-6">
-        <div className="flex items-center justify-between mb-4">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reschedule-modal-title"
+    >
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-[#F6E4EC] overflow-hidden p-6 max-h-[90dvh] flex flex-col">
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#F6E4EC]">
           <div className="flex items-center gap-2.5 text-[#4B7BFF]">
             <Calendar size={20} />
-            <h3 className="font-bold text-base text-[#28232A]">Reagendar Atividade</h3>
+            <h3 id="reschedule-modal-title" className="font-bold text-base text-[#28232A]">
+              Reagendar Atividade
+            </h3>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-[#827780] hover:bg-[#FCE5ED] hover:text-[#F04491] cursor-pointer"
+            aria-label="Fechar"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[#827780] hover:bg-[#FCE5ED] hover:text-[#F04491] cursor-pointer transition-colors"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
@@ -126,7 +165,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
           Selecione a nova data e horário para <strong>"{activityTitle}"</strong>:
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1">
           <div>
             <label className="block text-xs font-bold text-[#28232A] mb-1">Nova Data</label>
             <input
@@ -134,7 +173,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
               required
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3 py-2 text-xs md:text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30"
+              className="w-full px-3.5 py-2.5 text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30"
             />
           </div>
 
@@ -146,7 +185,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
                 required
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-3 py-2 text-xs md:text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30"
+                className="w-full px-3.5 py-2.5 text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30"
               />
             </div>
             <div>
@@ -155,7 +194,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-3 py-2 text-xs md:text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30"
+                className="w-full px-3.5 py-2.5 text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30"
               />
             </div>
           </div>
@@ -164,13 +203,13 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-[#827780] hover:bg-[#FFF9FB] rounded-xl cursor-pointer"
+              className="px-4 py-2.5 min-h-[44px] text-xs font-semibold text-[#827780] hover:bg-[#FFF9FB] rounded-xl cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-xs font-bold bg-[#4B7BFF] hover:bg-[#3A68E6] text-white rounded-xl shadow-md transition-all cursor-pointer"
+              className="px-5 py-2.5 min-h-[44px] text-xs font-bold bg-[#4B7BFF] hover:bg-[#3A68E6] text-white rounded-xl shadow-md transition-all cursor-pointer"
             >
               Confirmar Reagendamento
             </button>
@@ -197,21 +236,36 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
   title,
   description,
 }) => {
+  useModalA11y({
+    isOpen,
+    onClose,
+    closeOnEscape: true,
+    preventScroll: true,
+  })
+
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-[#F6E4EC] p-6 text-center">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-modal-title"
+    >
+      <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl border border-[#F6E4EC] p-6 text-center max-h-[90dvh] overflow-y-auto">
         <div className="w-12 h-12 rounded-2xl bg-[#FCE8E6] text-[#D93025] flex items-center justify-center mx-auto mb-3">
           <AlertTriangle size={24} />
         </div>
-        <h3 className="font-bold text-base text-[#28232A] mb-1">{title}</h3>
+        <h3 id="delete-modal-title" className="font-bold text-base text-[#28232A] mb-1">{title}</h3>
         <p className="text-xs text-[#827780] leading-relaxed mb-6">{description}</p>
         <div className="flex items-center justify-center gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2.5 text-xs font-semibold text-[#827780] hover:bg-[#FFF9FB] rounded-xl border border-[#F6E4EC] cursor-pointer"
+            className="flex-1 py-2.5 min-h-[44px] text-xs font-semibold text-[#827780] hover:bg-[#FFF9FB] rounded-xl border border-[#F6E4EC] cursor-pointer"
           >
             Cancelar
           </button>
@@ -221,7 +275,7 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
               onConfirm()
               onClose()
             }}
-            className="flex-1 py-2.5 text-xs font-bold bg-[#D93025] hover:bg-[#C5221F] text-white rounded-xl shadow-md cursor-pointer transition-all"
+            className="flex-1 py-2.5 min-h-[44px] text-xs font-bold bg-[#D93025] hover:bg-[#C5221F] text-white rounded-xl shadow-md cursor-pointer transition-all"
           >
             Excluir
           </button>

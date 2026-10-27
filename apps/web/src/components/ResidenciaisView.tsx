@@ -17,9 +17,11 @@ import {
   Check,
   FileSignature,
   RefreshCw,
+  X,
 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
+import { useModalA11y } from '../hooks/useModalA11y'
 
 export type ResidencialSlug = 'paupina' | 'joaquim_machado'
 export type ResidentialSubTab = 'dossiers' | 'batches' | 'proxies'
@@ -833,6 +835,13 @@ const DossierModal: React.FC<DossierModalProps> = ({
   const [proxyReason, setProxyReason] = useState(initialData?.proxy_reason || '')
   const [notes, setNotes] = useState(initialData?.notes || '')
 
+  useModalA11y({
+    isOpen,
+    onClose,
+    closeOnEscape: true,
+    preventScroll: true,
+  })
+
   if (!isOpen) return null
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -855,20 +864,28 @@ const DossierModal: React.FC<DossierModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-lg bg-white rounded-3xl shadow-xl border border-[#F6E4EC] overflow-hidden flex flex-col max-h-[90vh]">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dossier-modal-title"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in"
+    >
+      <div className="w-full max-w-lg bg-white rounded-3xl shadow-xl border border-[#F6E4EC] overflow-hidden flex flex-col max-h-[90dvh]">
         <div className="px-6 py-4 border-b border-[#F6E4EC] flex items-center justify-between bg-[#FFF9FB]">
           <div>
-            <h3 className="text-base font-black text-[#28232A]">
+            <h3 id="dossier-modal-title" className="text-base font-black text-[#28232A]">
               {initialData ? 'Editar Dossiê' : 'Novo Dossiê'}
             </h3>
             <p className="text-xs text-[#827780]">{residencialName}</p>
           </div>
           <button
+            type="button"
+            aria-label="Fechar dossiê"
             onClick={onClose}
-            className="p-1 rounded-xl text-[#827780] hover:text-[#28232A] cursor-pointer"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[#827780] hover:text-[#28232A] hover:bg-[#FCE5ED] cursor-pointer transition-colors"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 
@@ -1065,20 +1082,28 @@ const BatchModal: React.FC<BatchModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-[#F6E4EC] overflow-hidden flex flex-col">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="batch-modal-title"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in"
+    >
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-[#F6E4EC] overflow-hidden flex flex-col max-h-[90dvh]">
         <div className="px-6 py-4 border-b border-[#F6E4EC] flex items-center justify-between bg-[#FFF9FB]">
           <div>
-            <h3 className="text-base font-black text-[#28232A]">
+            <h3 id="batch-modal-title" className="text-base font-black text-[#28232A]">
               {initialData ? 'Editar Lote de Envio' : 'Novo Lote de Envio'}
             </h3>
             <p className="text-xs text-[#827780]">{residencialName}</p>
           </div>
           <button
+            type="button"
+            aria-label="Fechar lote"
             onClick={onClose}
-            className="p-1 rounded-xl text-[#827780] hover:text-[#28232A] cursor-pointer"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[#827780] hover:text-[#28232A] hover:bg-[#FCE5ED] cursor-pointer transition-colors"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 

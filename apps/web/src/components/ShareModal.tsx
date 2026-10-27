@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { X, Share2, Mail, Shield, CheckCircle2, AlertCircle, Trash2, Clock, Users } from 'lucide-react'
+import { X, Share2, Mail, CheckCircle2, AlertCircle, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
+import { useModalA11y } from '../hooks/useModalA11y'
 import type { ResourceType, SharePermission, ShareStatus } from '../types/supabase'
 
 interface ShareItem {
@@ -35,6 +36,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
+  useModalA11y({
+    isOpen,
+    onClose,
+    closeOnEscape: true,
+    preventScroll: true,
+  })
+
   const loadShares = async () => {
     if (!resourceId) return
     try {
@@ -60,24 +68,32 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     }
   }, [isOpen, resourceId])
 
-  if (!isOpen) return null
-
   const handleShare = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim() || !user) return
-
-    setLoading(true)
     setErrorMsg(null)
     setSuccessMsg(null)
 
+    if (!user) {
+      setErrorMsg('Você precisa estar autenticado.')
+      return
+    }
+
+    if (!email.trim() || !email.includes('@')) {
+      setErrorMsg('Por favor, informe um endereço de e-mail institucional válido.')
+      return
+    }
+
+    setLoading(true)
     try {
       const newShare = {
         owner_id: user.id,
         resource_type: resourceType,
         resource_id: resourceId,
         invited_email: email.trim().toLowerCase(),
-        permission,
-        status: 'pending',
+        permission: permission,
+        status: 'pending' as ShareStatus,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }
 
       const { data, error } = await (supabase.from('resource_shares') as any)
@@ -85,17 +101,15 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         .select()
         .single()
 
-      if (error) {
-        setErrorMsg('Erro ao compartilhar: ' + error.message)
-      } else {
-        setSuccessMsg(`Convite enviado com sucesso para ${email}!`)
+      if (!error && data) {
+        setShares((prev) => [data as ShareItem, ...prev])
+        setSuccessMsg(`Convite enviado com sucesso para ${email.trim()}!`)
         setEmail('')
-        if (data) {
-          setShares((prev) => [data, ...prev])
-        }
+      } else {
+        setErrorMsg(error?.message || 'Falha ao registrar convite de compartilhamento.')
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Erro inesperado ao compartilhar.')
+      setErrorMsg(err?.message || 'Erro inesperado ao compartilhar recurso.')
     } finally {
       setLoading(false)
     }
@@ -118,32 +132,46 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     }
   }
 
+  if (!isOpen) return null
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-[#F6E4EC] overflow-hidden flex flex-col max-h-[90vh]">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="share-modal-title"
+    >
+      <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-[#F6E4EC] overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-[#F6E4EC] flex items-center justify-between bg-gradient-to-r from-[#FFF9FB] to-white">
+        <div className="px-6 py-4 sm:py-5 border-b border-[#F6E4EC] flex items-center justify-between bg-gradient-to-r from-[#FFF9FB] to-white">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-[#EDF2FF] text-[#4B7BFF] flex items-center justify-center">
+            <div className="w-9 h-9 rounded-2xl bg-[#EDF2FF] text-[#4B7BFF] flex items-center justify-center shrink-0">
               <Share2 size={18} />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-[#28232A]">Compartilhar Recurso</h2>
+            <div className="min-w-0">
+              <h2 id="share-modal-title" className="text-base font-bold text-[#28232A]">
+                Compartilhar Recurso
+              </h2>
               <p className="text-xs text-[#827780] font-medium truncate max-w-xs">
                 {resourceTitle}
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED] cursor-pointer"
+            aria-label="Fechar"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED] cursor-pointer transition-colors"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto space-y-5">
+        <div className="p-6 overflow-y-auto space-y-5 flex-1">
           {errorMsg && (
             <div className="p-3 rounded-2xl bg-[#FCE8E6] border border-[#D93025]/20 flex items-start gap-2 text-xs text-[#D93025]">
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
@@ -163,7 +191,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             <label className="block text-xs font-bold text-[#28232A] uppercase tracking-wider">
               Convidar Assistente Social ou Colega
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative flex-1">
                 <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#827780]" />
                 <input
@@ -172,27 +200,29 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   placeholder="colega@orgao.gov.br"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 text-xs md:text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491]"
+                  className="w-full pl-10 pr-3 py-2.5 text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491]"
                 />
               </div>
 
-              <select
-                value={permission}
-                onChange={(e) => setPermission(e.target.value as SharePermission)}
-                className="px-3 py-2 text-xs font-bold bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none"
-              >
-                <option value="viewer">Visualizar</option>
-                <option value="commenter">Comentar</option>
-                <option value="editor">Editar</option>
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={permission}
+                  onChange={(e) => setPermission(e.target.value as SharePermission)}
+                  className="px-3 py-2.5 text-xs font-bold bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none"
+                >
+                  <option value="viewer">Visualizar</option>
+                  <option value="commenter">Comentar</option>
+                  <option value="editor">Editar</option>
+                </select>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 bg-[#F04491] hover:bg-[#DE3380] text-white text-xs font-bold rounded-2xl shadow-md transition-all cursor-pointer disabled:opacity-50"
-              >
-                {loading ? 'Enviando...' : 'Convidar'}
-              </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2.5 min-h-[44px] bg-[#F04491] hover:bg-[#DE3380] text-white text-xs font-bold rounded-2xl shadow-md transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center shrink-0"
+                >
+                  {loading ? 'Enviando...' : 'Convidar'}
+                </button>
+              </div>
             </div>
           </form>
 
@@ -213,7 +243,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     key={share.id}
                     className="p-3 rounded-2xl bg-[#FFF9FB] border border-[#F6E4EC] flex items-center justify-between text-xs"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 pr-2">
                       <span className="font-bold text-[#28232A] block truncate">
                         {share.invited_email}
                       </span>
@@ -229,11 +259,13 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     </div>
 
                     <button
+                      type="button"
                       onClick={() => handleRevoke(share.id)}
                       title="Revogar acesso"
-                      className="p-1.5 text-[#827780] hover:text-[#D93025] hover:bg-[#FCE8E6] rounded-xl transition-all cursor-pointer"
+                      aria-label="Revogar acesso"
+                      className="w-10 h-10 flex items-center justify-center text-[#827780] hover:text-[#D93025] hover:bg-[#FCE8E6] rounded-xl transition-all cursor-pointer shrink-0"
                     >
-                      <Trash2 size={15} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 ))}
