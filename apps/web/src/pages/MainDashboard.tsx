@@ -21,6 +21,7 @@ import { BottomNav } from '../components/BottomNav'
 import { CalendarView } from '../components/CalendarView'
 import { ReportsView } from '../components/ReportsView'
 import { ServicesDirectoryView } from '../components/ServicesDirectoryView'
+import { CaseTimelineView } from '../components/CaseTimelineView'
 import { DocumentsView } from '../components/DocumentsView'
 import { TeamView } from '../components/TeamView'
 import { useAuth } from '../contexts/AuthContext'
@@ -485,6 +486,22 @@ export const MainDashboard: React.FC = () => {
             <ReportsView
               activities={activities}
               profileName={profileDisplayName}
+            />
+          )}
+
+          {/* VIEW: CASE TIMELINE */}
+          {currentTab === 'timeline' && (
+            <CaseTimelineView
+              activities={activities}
+              profileName={profileDisplayName}
+              onOpenNewActivity={() => {
+                setEditingActivity(null)
+                setIsModalOpen(true)
+              }}
+              onSelectActivity={(activity) => {
+                setEditingActivity(activity)
+                setIsModalOpen(true)
+              }}
             />
           )}
 
