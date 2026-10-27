@@ -134,7 +134,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
             </div>
 
             <h3
-              className={`text-sm md:text-base font-bold text-[#28232A] tracking-tight leading-snug truncate ${
+              className={`text-sm md:text-base font-bold text-[#28232A] tracking-tight leading-snug break-words line-clamp-2 ${
                 isCompleted ? 'line-through text-[#827780]' : ''
               }`}
             >
@@ -174,26 +174,32 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
         {/* Action icons / Menu */}
         <div className="flex items-center gap-1 relative">
           <button
+            type="button"
+            aria-label="Editar atividade"
             onClick={() => onEdit(activity)}
             title="Editar atividade"
-            className="p-1.5 rounded-xl text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED] transition-all cursor-pointer"
+            className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED] transition-all cursor-pointer"
           >
-            <Edit2 size={15} />
+            <Edit2 size={16} />
           </button>
 
           <button
+            type="button"
+            aria-label="Compartilhar com colega"
             onClick={() => onShareRequest(activity)}
             title="Compartilhar com colega"
-            className="p-1.5 rounded-xl text-[#827780] hover:text-[#4B7BFF] hover:bg-[#EDF2FF] transition-all cursor-pointer"
+            className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-[#827780] hover:text-[#4B7BFF] hover:bg-[#EDF2FF] transition-all cursor-pointer"
           >
-            <Share2 size={15} />
+            <Share2 size={16} />
           </button>
 
           <div className="relative">
             <button
+              type="button"
+              aria-label="Mais opções"
               onClick={() => setMenuOpen(!menuOpen)}
               title="Mais opções"
-              className="p-1.5 rounded-xl text-[#827780] hover:text-[#28232A] hover:bg-[#FFF9FB] transition-all cursor-pointer"
+              className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center text-[#827780] hover:text-[#28232A] hover:bg-[#FFF9FB] transition-all cursor-pointer"
             >
               <MoreVertical size={16} />
             </button>

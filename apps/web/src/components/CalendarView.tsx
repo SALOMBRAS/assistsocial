@@ -553,8 +553,32 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         )}
                       </div>
 
-                      {/* Lista resumida no card do dia */}
-                      <div className="space-y-1 mt-1 overflow-y-auto max-h-[60px] no-scrollbar">
+                      {/* Mobile compact indicator dots (< 640px) */}
+                      <div className="flex sm:hidden items-center justify-center gap-1 mt-1 flex-wrap">
+                        {dayActs.slice(0, 3).map((act) => {
+                          const overdue = isOverdue(act)
+                          return (
+                            <span
+                              key={act.id}
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                overdue
+                                  ? 'bg-[#D93025]'
+                                  : act.status === 'completed'
+                                  ? 'bg-[#36A879]'
+                                  : 'bg-[#F04491]'
+                              }`}
+                            />
+                          )
+                        })}
+                        {dayActs.length > 3 && (
+                          <span className="text-[8px] font-black text-[#827780]">
+                            +{dayActs.length - 3}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Desktop/Tablet text labels (>= 640px) */}
+                      <div className="hidden sm:block space-y-1 mt-1 overflow-y-auto max-h-[60px] no-scrollbar">
                         {dayActs.slice(0, 2).map((act) => {
                           const overdue = isOverdue(act)
                           return (

@@ -369,7 +369,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
       </div>
 
       {/* 3. TOTAIS E CARDS DE RESUMO VISUAL */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-5 gap-3">
         {/* Total Filtradas */}
         <div className="bg-white p-4 rounded-3xl border border-[#F6E4EC] shadow-[0_2px_12px_rgba(240,68,145,0.03)]">
           <div className="flex items-center justify-between text-[#827780] mb-2">
@@ -494,8 +494,51 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             Nenhuma atividade localizada com os filtros especificados.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <>
+            {/* Visualização em Lista de Cards no Celular (md:hidden) */}
+            <div className="md:hidden divide-y divide-[#F6E4EC] p-3 space-y-3">
+              {filteredActivities.map((act) => {
+                const badge = getStatusBadge(act)
+                const dateStr = new Intl.DateTimeFormat('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }).format(new Date(act.starts_at))
+
+                return (
+                  <div key={act.id} className="pt-3 first:pt-0 space-y-2 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold text-[#827780]">{dateStr}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${badge.bg}`}>
+                        {badge.label}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase text-[#F04491] block">
+                        {getCategoryLabel(act.category)}
+                      </span>
+                      <h4 className="font-bold text-[#28232A] text-sm break-words">{act.title}</h4>
+                    </div>
+                    {act.description && (
+                      <p className="text-[11px] text-[#827780] leading-relaxed break-words">
+                        {act.description}
+                      </p>
+                    )}
+                    {act.status === 'not_completed' && act.failure_reason && (
+                      <div className="p-2 rounded-xl bg-[#FCE8E6] text-[#D93025] text-[11px] font-semibold">
+                        Motivo: {act.failure_reason}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Visualização em Tabela no Desktop (hidden md:block) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
               <thead className="bg-[#FFF9FB] text-[#827780] uppercase text-[10px] font-bold border-b border-[#F6E4EC]">
                 <tr>
                   <th className="py-3 px-4">Data / Horário</th>
@@ -552,6 +595,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
