@@ -71,13 +71,25 @@ if (registerPage.includes('supabase.auth.signUp')) {
 }
 console.log('✅ /cadastro validado como solicitação via WhatsApp sem cadastro público direto.')
 
-// 5. Validar conexão com Edge Function admin-invite-user
+// 5. Validar conexão com Edge Function admin-invite-user e contrato estrito { full_name, email, phone }
 const adminPage = fs.readFileSync('C:/Users/Londres31/Documents/DEV/apps/web/src/pages/AdminUsersPage.tsx', 'utf-8')
 if (!adminPage.includes('admin-invite-user') || !adminPage.includes('supabase.functions.invoke')) {
   console.error('ERRO: Chamada oficial à Edge Function admin-invite-user ausente em AdminUsersPage!')
   process.exit(1)
 }
-console.log('✅ Conexão à Edge Function admin-invite-user validada.')
+if (!adminPage.includes('full_name: fullName.trim()')) {
+  console.error('ERRO: Contrato full_name ausente no payload de admin-invite-user!')
+  process.exit(1)
+}
+if (adminPage.includes('role: role')) {
+  console.error('ERRO: Role não deve ser enviado pelo cliente para admin-invite-user!')
+  process.exit(1)
+}
+if (!adminPage.includes('FunctionsHttpError') || !adminPage.includes('parseEdgeFunctionError')) {
+  console.error('ERRO: Diagnóstico robusto de erros HTTP ausente em AdminUsersPage!')
+  process.exit(1)
+}
+console.log('✅ Conexão e contrato { full_name, email, phone } à Edge Function admin-invite-user validados.')
 
 // 6. Validar proteção de rota administrativa por profiles.role = 'global_admin'
 const guardsFile = fs.readFileSync('C:/Users/Londres31/Documents/DEV/apps/web/src/pages/Guards.tsx', 'utf-8')

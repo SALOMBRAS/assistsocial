@@ -14,8 +14,80 @@ import {
   RefreshCw,
   Sparkles,
 } from 'lucide-react'
+import {
+  FunctionsHttpError,
+  FunctionsFetchError,
+  FunctionsRelayError,
+} from '@supabase/supabase-js'
 import { useAuth, type Profile } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+
+/**
+ * Extrai e formata o erro da Edge Function de forma segura e compreensível,
+ * distinguindo erros HTTP, de transporte de rede e de relay, sem expor tokens ou dados sensíveis.
+ */
+async function parseEdgeFunctionError(error: any): Promise<string> {
+  // 1. Erro com resposta HTTP da função ou do gateway (FunctionsHttpError)
+  if (error instanceof FunctionsHttpError || error?.name === 'FunctionsHttpError') {
+    const response = error.context as Response | undefined
+    const status = response?.status
+    let serverMsg = ''
+
+    if (response) {
+      try {
+        const body = await response.clone().json()
+        serverMsg = body?.error || body?.message || body?.msg || ''
+      } catch {
+        try {
+          serverMsg = await response.clone().text()
+        } catch {}
+      }
+    }
+
+    if (status === 404) {
+      return 'A Edge Function "admin-invite-user" está indisponível ou ainda não foi publicada no projeto Supabase (HTTP 404).'
+    }
+
+    if (status === 401 || status === 403) {
+      return `Sessão expirada ou acesso não autorizado (HTTP ${status}). Apenas a administradora global autenticada pode emitir convites.`
+    }
+
+    if (status === 400 || status === 422) {
+      return (
+        serverMsg ||
+        `Dados do convite inválidos. Verifique o formato do e-mail e os campos preenchidos (HTTP ${status}).`
+      )
+    }
+
+    if (status === 409) {
+      return (
+        serverMsg ||
+        'Este endereço de e-mail já possui um convite pendente ou já está cadastrado no sistema (HTTP 409).'
+      )
+    }
+
+    if (status && status >= 500) {
+      return `Erro interno do servidor ao processar o convite (HTTP ${status}). ${serverMsg}`.trim()
+    }
+
+    return serverMsg
+      ? `A Edge Function retornou erro (HTTP ${status}): ${serverMsg}`
+      : `A Edge Function retornou status HTTP ${status}.`
+  }
+
+  // 2. Erro de Relay (falha no roteamento do gateway do Supabase)
+  if (error instanceof FunctionsRelayError || error?.name === 'FunctionsRelayError') {
+    return 'Falha no gateway do Supabase ao repassar a requisição para a Edge Function (FunctionsRelayError).'
+  }
+
+  // 3. Erro de Transporte / Conexão (FunctionsFetchError)
+  if (error instanceof FunctionsFetchError || error?.name === 'FunctionsFetchError') {
+    return 'Falha de comunicação ou conexão de rede com o endpoint da Edge Function (FunctionsFetchError). Verifique sua conexão com a internet.'
+  }
+
+  // 4. Erros genéricos
+  return error?.message || 'Falha inesperada ao comunicar com a Edge Function.'
+}
 
 export const AdminUsersPage: React.FC = () => {
   const { profile } = useAuth()
@@ -25,11 +97,10 @@ export const AdminUsersPage: React.FC = () => {
   const [loadingList, setLoadingList] = useState(true)
   const [search, setSearch] = useState('')
 
-  // Formulário de convite
-  const [email, setEmail] = useState('')
+  // Formulário de convite (mantém os nomes visuais para acessibilidade)
   const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [role, setRole] = useState<'social_worker' | 'supervisor'>('social_worker')
 
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
@@ -66,47 +137,40 @@ export const AdminUsersPage: React.FC = () => {
     setInviteError(null)
     setInviteSuccess(null)
 
-    if (!email.trim() || !fullName.trim()) {
+    if (!fullName.trim() || !email.trim()) {
       setInviteError('Por favor, preencha o nome completo e o e-mail institucional.')
       return
     }
 
     setInviting(true)
     try {
-      // Chamada oficial à Edge Function 'admin-invite-user'
+      // Contrato estrito da Edge Function: { full_name, email, phone }
+      // Não enviamos role do cliente; o papel padrão social_worker é definido de forma segura pelo servidor
       const { data, error } = await supabase.functions.invoke('admin-invite-user', {
         body: {
+          full_name: fullName.trim(),
           email: email.trim().toLowerCase(),
-          fullName: fullName.trim(),
-          role: role,
           phone: phone.trim() || null,
         },
       })
 
       if (error) {
-        // Exibe o erro real sem simulação de sucesso
-        setInviteError(
-          `Falha na Edge Function 'admin-invite-user': ${
-            error.message || 'A função não está disponível ou retornou erro.'
-          }`
-        )
+        const errorMsg = await parseEdgeFunctionError(error)
+        setInviteError(errorMsg)
       } else if (data && data.error) {
         setInviteError(`Erro retornado pela função: ${data.error}`)
       } else {
         setInviteSuccess(
-          `Convite oficial enviado com sucesso para ${email.trim()}! O profissional receberá as credenciais de acesso por e-mail.`
+          `Convite oficial emitido com sucesso para ${email.trim()}! As instruções de acesso foram enviadas por e-mail.`
         )
-        setEmail('')
         setFullName('')
+        setEmail('')
         setPhone('')
-        setRole('social_worker')
         loadProfiles()
       }
     } catch (err: any) {
-      setInviteError(
-        err?.message ||
-          'A Edge Function admin-invite-user não respondeu. Certifique-se de que a função foi implantada no Supabase pelo Terminal 2.'
-      )
+      const errorMsg = await parseEdgeFunctionError(err)
+      setInviteError(errorMsg)
     } finally {
       setInviting(false)
     }
@@ -295,18 +359,16 @@ export const AdminUsersPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-bold text-[#28232A] mb-1.5 uppercase tracking-wider">
-                  Papel de Acesso *
+                  Papel de Acesso
                 </label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491] transition-all"
-                >
-                  <option value="social_worker">Assistente Social (social_worker)</option>
-                  <option value="supervisor">Supervisor(a) / Coordenação (supervisor)</option>
-                </select>
+                <div className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-[#28232A] flex items-center justify-between">
+                  <span className="font-semibold text-[#28232A]">Assistente Social</span>
+                  <span className="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full font-bold bg-[#EBF7F1] text-[#36A879] border border-[#36A879]/20">
+                    Padrão do Servidor
+                  </span>
+                </div>
                 <p className="text-[11px] text-[#827780] mt-1">
-                  O papel de Administradora Global é único e não pode ser concedido por convite padrão.
+                  Por segurança e conformidade, novos convites recebem automaticamente o papel institucional de Assistente Social definido pelo servidor.
                 </p>
               </div>
 
