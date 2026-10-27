@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Plus, Search, Bell, CheckCircle2 } from 'lucide-react'
+import { Plus, Search, Bell, CheckCircle2, Menu } from 'lucide-react'
 
 interface HeaderProps {
   onOpenNewActivity: () => void
@@ -7,6 +7,7 @@ interface HeaderProps {
   onSearchChange: (value: string) => void
   totalActivitiesCount: number
   profileName?: string
+  onToggleMobileMenu?: () => void
 }
 
 const getFormattedDate = () => {
@@ -24,14 +25,26 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchChange,
   totalActivitiesCount,
   profileName,
+  onToggleMobileMenu,
 }) => {
   const formattedDate = useMemo(() => getFormattedDate(), [])
 
   return (
-    <header className="w-full bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-[#F6E4EC] px-4 md:px-8 py-4 transition-all">
+    <header className="w-full bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-[#F6E4EC] px-4 md:px-8 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 transition-all">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Left: Greeting & Date */}
-        <div>
+        {/* Left: Hamburger & Greeting */}
+        <div className="flex items-center gap-3">
+          {onToggleMobileMenu && (
+            <button
+              type="button"
+              aria-label="Abrir menu de navegação"
+              onClick={onToggleMobileMenu}
+              className="md:hidden w-10 h-10 rounded-2xl border border-[#F6E4EC] bg-white flex items-center justify-center text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED]/60 cursor-pointer transition-colors shrink-0 shadow-xs"
+            >
+              <Menu size={20} />
+            </button>
+          )}
+          <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl md:text-2xl font-black text-[#28232A] tracking-tight">
               Olá, {profileName || 'Assistente'}! <span className="inline-block animate-wave">🌸</span>
@@ -44,6 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
           <p className="text-xs md:text-sm text-[#827780] font-medium mt-0.5">
             {formattedDate} • Você tem <strong className="text-[#F04491]">{totalActivitiesCount}</strong> atividades registradas
           </p>
+        </div>
         </div>
 
         {/* Right: Search & Action Buttons */}

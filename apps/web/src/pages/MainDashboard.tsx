@@ -36,6 +36,7 @@ export const MainDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
 
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -290,7 +291,7 @@ export const MainDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Desktop Sidebar */}
+      {/* Desktop & Mobile Drawer Navigation */}
       <Sidebar
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
@@ -298,6 +299,8 @@ export const MainDashboard: React.FC = () => {
         profileEmail={profileEmail}
         isAdmin={isAdmin}
         onLogout={signOut}
+        isMobileOpen={isMobileNavOpen}
+        onCloseMobile={() => setIsMobileNavOpen(false)}
       />
 
       {/* Main Content Area */}
@@ -311,9 +314,10 @@ export const MainDashboard: React.FC = () => {
           onSearchChange={setSearchTerm}
           totalActivitiesCount={activities.length}
           profileName={profileDisplayName}
+          onToggleMobileMenu={() => setIsMobileNavOpen((prev) => !prev)}
         />
 
-        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto pb-24 md:pb-12">
+        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-12">
           {/* VIEW: DASHBOARD & ATIVIDADES */}
           {(currentTab === 'dashboard' || currentTab === 'activities') && (
             <>
@@ -576,6 +580,7 @@ export const MainDashboard: React.FC = () => {
           setEditingActivity(null)
           setIsModalOpen(true)
         }}
+        onToggleMore={() => setIsMobileNavOpen((prev) => !prev)}
       />
 
       {/* Activity Create / Edit Modal */}
