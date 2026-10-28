@@ -50,10 +50,10 @@ const ALL_NAV_PAGES: Array<{ id: NavTab; label: string; description: string; ico
   { id: 'activities', label: 'Atividades', description: 'Registro e controle diário de atendimentos, visitas e tarefas', icon: <CalendarCheck size={16} /> },
   { id: 'calendar', label: 'Agenda & Visitas', description: 'Agendamentos com lembretes e prazos de acompanhamento', icon: <CalendarIcon size={16} /> },
   { id: 'residenciais', label: 'Residenciais', description: 'Gestão habitacional territorial com Modo Simples e Modo Avançado', icon: <Building2 size={16} /> },
-  { id: 'timeline', label: 'Linha do Tempo', description: 'Acompanhamento histórico familiar e eventos cronológicos (Em breve)', icon: <GitCommit size={16} /> },
+  { id: 'timeline', label: 'Linha do Tempo', description: 'Acompanhamento histórico e cronologia de famílias no território', icon: <GitCommit size={16} /> },
   { id: 'reports', label: 'Relatórios', description: 'Geração e exportação de estudos sociais e pareceres técnicos', icon: <FileSpreadsheet size={16} /> },
   { id: 'services', label: 'Diretório de Serviços', description: 'Guia de serviços socioassistenciais do Ceará (CRAS, CREAS, etc.)', icon: <Building2 size={16} /> },
-  { id: 'documents', label: 'Pastas & Docs', description: 'Repositório confidencial de arquivos com criptografia e RLS', icon: <FileText size={16} /> },
+  { id: 'documents', label: 'Documentos Word', description: 'Central de criação e exportação .docx com modelos SUAS e folha timbrada', icon: <FileText size={16} /> },
   { id: 'team', label: 'Compartilhamentos', description: 'Compartilhamento ético e colaboração intersetorial entre profissionais', icon: <Users size={16} /> },
 ]
 

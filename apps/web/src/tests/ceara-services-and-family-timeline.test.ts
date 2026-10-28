@@ -4,7 +4,16 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 describe('Ceará Social Services & Family Timeline Test Suite (jana 3)', () => {
-  const rootDir = path.resolve(process.cwd(), '../..')
+  const findRepoRoot = () => {
+    let cur = process.cwd()
+    while (cur && !fs.existsSync(path.join(cur, 'supabase'))) {
+      const parent = path.dirname(cur)
+      if (parent === cur) break
+      cur = parent
+    }
+    return cur
+  }
+  const rootDir = findRepoRoot()
 
   describe('Part 1: Ceará Social Services Directory Contract', () => {
     it('migration enforces CHECK (state = "CE") and verified public RLS policy', () => {
