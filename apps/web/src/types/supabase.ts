@@ -539,7 +539,8 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
-      },
+      }
+,
       residential_simple_metrics: {
         Row: {
           id: string
@@ -646,8 +647,435 @@ export interface Database {
           recorded_at?: string
         }
       },
+      social_services: {
+        Row: {
+          id: string
+          name: string
+          organization: string
+          category: string
+          state: string
+          municipality: string
+          neighborhood: string | null
+          address: string
+          postal_code: string | null
+          contact_phone: string | null
+          contact_email: string | null
+          regular_schedule: string | null
+          target_public: string[]
+          access_requirements: string[]
+          accessibility_features: string[]
+          is_free: boolean
+          official_link: string | null
+          info_source: string
+          verification_status: 'verified' | 'in_review' | 'pending_confirmation'
+          verified_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          organization: string
+          category: string
+          state?: string
+          municipality: string
+          neighborhood?: string | null
+          address: string
+          postal_code?: string | null
+          contact_phone?: string | null
+          contact_email?: string | null
+          regular_schedule?: string | null
+          target_public?: string[]
+          access_requirements?: string[]
+          accessibility_features?: string[]
+          is_free?: boolean
+          official_link?: string | null
+          info_source: string
+          verification_status?: 'verified' | 'in_review' | 'pending_confirmation'
+          verified_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          organization?: string
+          category?: string
+          state?: string
+          municipality?: string
+          neighborhood?: string | null
+          address?: string
+          postal_code?: string | null
+          contact_phone?: string | null
+          contact_email?: string | null
+          regular_schedule?: string | null
+          target_public?: string[]
+          access_requirements?: string[]
+          accessibility_features?: string[]
+          is_free?: boolean
+          official_link?: string | null
+          info_source?: string
+          verification_status?: 'verified' | 'in_review' | 'pending_confirmation'
+          verified_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      },
+      families: {
+        Row: {
+          id: string
+          code: string | null
+          family_name: string
+          responsible_name: string
+          neighborhood: string | null
+          municipality: string
+          address: string | null
+          phone: string | null
+          current_stage: string
+          stage_updated_at: string
+          stage_updated_by: string | null
+          notes: string | null
+          assigned_worker_id: string | null
+          created_by: string | null
+          last_movement_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code?: string | null
+          family_name: string
+          responsible_name: string
+          neighborhood?: string | null
+          municipality?: string
+          address?: string | null
+          phone?: string | null
+          current_stage?: string
+          stage_updated_at?: string
+          stage_updated_by?: string | null
+          notes?: string | null
+          assigned_worker_id?: string | null
+          created_by?: string | null
+          last_movement_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string | null
+          family_name?: string
+          responsible_name?: string
+          neighborhood?: string | null
+          municipality?: string
+          address?: string | null
+          phone?: string | null
+          current_stage?: string
+          stage_updated_at?: string
+          stage_updated_by?: string | null
+          notes?: string | null
+          assigned_worker_id?: string | null
+          created_by?: string | null
+          last_movement_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+      },
+      family_members: {
+        Row: {
+          id: string
+          family_id: string
+          full_name: string
+          nis: string | null
+          cpf: string | null
+          relationship: string
+          birth_date: string | null
+          phone: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          family_id: string
+          full_name: string
+          nis?: string | null
+          cpf?: string | null
+          relationship: string
+          birth_date?: string | null
+          phone?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          family_id?: string
+          full_name?: string
+          nis?: string | null
+          cpf?: string | null
+          relationship?: string
+          birth_date?: string | null
+          phone?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      },
+      family_timeline_events: {
+        Row: {
+          id: string
+          family_id: string
+          person_id: string | null
+          event_type: string
+          title: string
+          description: string | null
+          event_date: string
+          stage: string | null
+          author_id: string | null
+          author_name: string | null
+          related_activity_id: string | null
+          related_document_id: string | null
+          related_dossier_id: string | null
+          next_action: string | null
+          next_action_due_date: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          family_id: string
+          person_id?: string | null
+          event_type: string
+          title: string
+          description?: string | null
+          event_date?: string
+          stage?: string | null
+          author_id?: string | null
+          author_name?: string | null
+          related_activity_id?: string | null
+          related_document_id?: string | null
+          related_dossier_id?: string | null
+          next_action?: string | null
+          next_action_due_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          family_id?: string
+          person_id?: string | null
+          event_type?: string
+          title?: string
+          description?: string | null
+          event_date?: string
+          stage?: string | null
+          author_id?: string | null
+          author_name?: string | null
+          related_activity_id?: string | null
+          related_document_id?: string | null
+          related_dossier_id?: string | null
+          next_action?: string | null
+          next_action_due_date?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      },
+      family_pendencies: {
+        Row: {
+          id: string
+          family_id: string
+          person_id: string | null
+          title: string
+          description: string | null
+          category: string
+          assigned_to: string | null
+          assigned_to_name: string | null
+          due_date: string | null
+          priority: 'baixa' | 'media' | 'alta' | 'urgente'
+          status: 'pendente' | 'em_andamento' | 'aguardando_familia' | 'aguardando_instituicao' | 'resolvida' | 'cancelada'
+          next_action: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          resolution_notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          family_id: string
+          person_id?: string | null
+          title: string
+          description?: string | null
+          category?: string
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          due_date?: string | null
+          priority?: 'baixa' | 'media' | 'alta' | 'urgente'
+          status?: 'pendente' | 'em_andamento' | 'aguardando_familia' | 'aguardando_instituicao' | 'resolvida' | 'cancelada'
+          next_action?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolution_notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          family_id?: string
+          person_id?: string | null
+          title?: string
+          description?: string | null
+          category?: string
+          assigned_to?: string | null
+          assigned_to_name?: string | null
+          due_date?: string | null
+          priority?: 'baixa' | 'media' | 'alta' | 'urgente'
+          status?: 'pendente' | 'em_andamento' | 'aguardando_familia' | 'aguardando_instituicao' | 'resolvida' | 'cancelada'
+          next_action?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolution_notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      },
+      family_stage_history: {
+        Row: {
+          id: string
+          family_id: string
+          previous_stage: string | null
+          new_stage: string
+          reason: string | null
+          changed_by: string | null
+          changed_by_name: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          family_id: string
+          previous_stage?: string | null
+          new_stage: string
+          reason?: string | null
+          changed_by?: string | null
+          changed_by_name?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          family_id?: string
+          previous_stage?: string | null
+          new_stage?: string
+          reason?: string | null
+          changed_by?: string | null
+          changed_by_name?: string | null
+          created_at?: string
+        }
+      },
+      document_processing_jobs: {
+        Row: {
+          id: string
+          user_id: string
+          operation_type: string
+          status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'expired'
+          original_filename: string | null
+          result_filename: string | null
+          output_format: string | null
+          file_size: number | null
+          error_code: string | null
+          error_message: string | null
+          metadata: Json
+          created_at: string
+          completed_at: string | null
+          expires_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          operation_type: string
+          status?: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'expired'
+          original_filename?: string | null
+          result_filename?: string | null
+          output_format?: string | null
+          file_size?: number | null
+          error_code?: string | null
+          error_message?: string | null
+          metadata?: Json
+          created_at?: string
+          completed_at?: string | null
+          expires_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          operation_type?: string
+          status?: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'expired'
+          original_filename?: string | null
+          result_filename?: string | null
+          output_format?: string | null
+          file_size?: number | null
+          error_code?: string | null
+          error_message?: string | null
+          metadata?: Json
+          created_at?: string
+          completed_at?: string | null
+          expires_at?: string
+        }
+      },
     },
     Functions: {
+      create_document_job: {
+        Args: {
+          p_operation_type: string
+          p_original_filename?: string | null
+          p_output_format?: string | null
+          p_metadata?: Json
+        }
+        Returns: Json
+      },
+      update_document_job_status: {
+        Args: {
+          p_job_id: string
+          p_status: string
+          p_result_filename?: string | null
+          p_file_size?: number | null
+          p_error_code?: string | null
+          p_error_message?: string | null
+          p_metadata?: Json
+        }
+        Returns: Json
+      },
+      get_user_document_jobs: {
+        Args: {
+          p_limit?: number
+        }
+        Returns: {
+          id: string
+          operation_type: string
+          status: string
+          original_filename: string | null
+          result_filename: string | null
+          output_format: string | null
+          file_size: number | null
+          error_code: string | null
+          created_at: string
+          completed_at: string | null
+          expires_at: string
+        }[]
+      },
+      cancel_document_job: {
+        Args: {
+          p_job_id: string
+        }
+        Returns: Json
+      },
+      cleanup_expired_document_jobs: {
+        Args: Record<string, never>
+        Returns: number
+      },
+
       get_residential_simple_metrics: {
         Args: {
           p_residencial_slug: string
@@ -778,3 +1206,33 @@ export type ResidentialSimpleMetricsRow = Database['public']['Tables']['resident
 export type ResidentialSimpleMetricsInsert = Database['public']['Tables']['residential_simple_metrics']['Insert']
 export type ResidentialSimpleMetricsUpdate = Database['public']['Tables']['residential_simple_metrics']['Update']
 export type ResidentialMetricsHistoryRow = Database['public']['Tables']['residential_metrics_history']['Row']
+
+export type FamilyStage =
+  | 'cadastro_inicial'
+  | 'triagem'
+  | 'aguardando_documentos'
+  | 'avaliacao_social'
+  | 'plano_acompanhamento'
+  | 'encaminhamentos'
+  | 'aguardando_retorno'
+  | 'acompanhamento_ativo'
+  | 'revisao'
+  | 'concluido'
+  | 'suspenso'
+
+export type PendencyPriority = 'baixa' | 'media' | 'alta' | 'urgente'
+export type PendencyStatus =
+  | 'pendente'
+  | 'em_andamento'
+  | 'aguardando_familia'
+  | 'aguardando_instituicao'
+  | 'resolvida'
+  | 'cancelada'
+
+export type SocialServiceRow = Database['public']['Tables']['social_services']['Row']
+export type FamilyRow = Database['public']['Tables']['families']['Row']
+export type FamilyMemberRow = Database['public']['Tables']['family_members']['Row']
+export type FamilyTimelineEventRow = Database['public']['Tables']['family_timeline_events']['Row']
+export type FamilyPendencyRow = Database['public']['Tables']['family_pendencies']['Row']
+export type FamilyStageHistoryRow = Database['public']['Tables']['family_stage_history']['Row']
+export type DocumentProcessingJobRow = Database['public']['Tables']['document_processing_jobs']['Row']
