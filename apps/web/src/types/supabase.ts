@@ -420,6 +420,126 @@ export interface Database {
           updated_at?: string
         }
       }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          type: 'share_invite' | 'share_response' | 'reminder' | 'system' | 'activity'
+          title: string
+          content: string
+          resource_type: string | null
+          resource_id: string | null
+          is_read: boolean
+          read_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: 'share_invite' | 'share_response' | 'reminder' | 'system' | 'activity'
+          title: string
+          content: string
+          resource_type?: string | null
+          resource_id?: string | null
+          is_read?: boolean
+          read_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          type?: 'share_invite' | 'share_response' | 'reminder' | 'system' | 'activity'
+          title?: string
+          content?: string
+          resource_type?: string | null
+          resource_id?: string | null
+          is_read?: boolean
+          read_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      reminders: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          description: string | null
+          remind_at: string
+          is_completed: boolean
+          activity_id: string | null
+          completed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          description?: string | null
+          remind_at: string
+          is_completed?: boolean
+          activity_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          description?: string | null
+          remind_at?: string
+          is_completed?: boolean
+          activity_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      residenciais: {
+        Row: {
+          id: string
+          slug: string
+          name: string
+          address: string
+          blocks_count: number
+          floors_count: number
+          pcd_adapted_units_count: number
+          description: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          name: string
+          address: string
+          blocks_count?: number
+          floors_count?: number
+          pcd_adapted_units_count?: number
+          description?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          slug?: string
+          name?: string
+          address?: string
+          blocks_count?: number
+          floors_count?: number
+          pcd_adapted_units_count?: number
+          description?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     },
     Functions: {
       mark_first_password_changed: {
@@ -438,6 +558,92 @@ export interface Database {
           message: string
         }
       }
+      mark_notification_read: {
+        Args: {
+          p_notification_id: string
+        }
+        Returns: {
+          success: boolean
+          id: string
+        }
+      }
+      mark_all_notifications_read: {
+        Args: Record<string, never>
+        Returns: {
+          success: boolean
+          updated_count: number
+        }
+      }
+      get_unread_notifications_count: {
+        Args: Record<string, never>
+        Returns: number
+      }
+      create_activity_share_invite: {
+        Args: {
+          p_activity_id: string
+          p_recipient_user_id: string
+          p_permission?: string
+        }
+        Returns: {
+          success: boolean
+          share_id: string
+          status: string
+          message: string
+        }
+      }
+      respond_to_share_invite: {
+        Args: {
+          p_share_id: string
+          p_action: string
+        }
+        Returns: {
+          success: boolean
+          share_id: string
+          status: string
+          message: string
+        }
+      }
+      search_users_for_sharing: {
+        Args: {
+          p_query: string
+          p_limit?: number
+        }
+        Returns: {
+          id: string
+          full_name: string | null
+          email: string
+          role: string | null
+          avatar_url: string | null
+        }[]
+      }
+      create_document_share_invite: {
+        Args: {
+          p_document_id: string
+          p_recipient_user_id: string
+          p_permission?: string
+        }
+        Returns: {
+          success: boolean
+          share_id: string
+          status: string
+          message: string
+        }
+      }
+      toggle_reminder_completed: {
+        Args: {
+          p_reminder_id: string
+        }
+        Returns: {
+          success: boolean
+          id: string
+          is_completed: boolean
+        }
+      }
     }
   }
 }
+
+export type NotificationItem = Database['public']['Tables']['notifications']['Row']
+export type ReminderItem = Database['public']['Tables']['reminders']['Row']
+export type ResidencialItem = Database['public']['Tables']['residenciais']['Row']
+
