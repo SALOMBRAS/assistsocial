@@ -31,12 +31,15 @@ import {
   DEFAULT_RESIDENCIAIS,
 } from '../services/residentialService'
 import { ResidencialModal } from './ResidencialModal'
+import { ResidencialSimpleModeView } from './ResidencialSimpleModeView'
+import { BarChart3 } from 'lucide-react'
 import type { ResidencialItem } from '../types/supabase'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 import { useModalA11y } from '../hooks/useModalA11y'
 
 export type ResidencialSlug = string
+export type ResidentialOperatingMode = 'simple' | 'advanced'
 export type ResidentialSubTab = 'dossiers' | 'batches' | 'proxies'
 
 export type OperationalStatus =
@@ -116,6 +119,25 @@ export const ResidenciaisView: React.FC<ResidenciaisViewProps> = ({ onBackToDash
         r.slug.toLowerCase().includes(term)
     )
   }, [residenciaisList, residencialSearchTerm])
+    const [operatingMode, setOperatingMode] = useState<ResidentialOperatingMode>(() => {
+    try {
+      const saved = localStorage.getItem('assistsocial_residential_mode')
+      if (saved === 'simple' || saved === 'advanced') return saved
+    } catch {
+      // fallback
+    }
+    return 'simple'
+  })
+
+  const handleModeChange = (mode: ResidentialOperatingMode) => {
+    setOperatingMode(mode)
+    try {
+      localStorage.setItem('assistsocial_residential_mode', mode)
+    } catch {
+      // ignore
+    }
+  }
+
   const [currentSubTab, setCurrentSubTab] = useState<ResidentialSubTab>('dossiers')
   
   // Dados do Supabase
@@ -174,8 +196,10 @@ export const ResidenciaisView: React.FC<ResidenciaisViewProps> = ({ onBackToDash
   }
 
   useEffect(() => {
-    loadData()
-  }, [selectedResidencial])
+    if (operatingMode === 'advanced') {
+      loadData()
+    }
+  }, [selectedResidencial, operatingMode])
 
   // 2. Indicadores Calculados a Partir dos Dados Reais
   const indicators = useMemo(() => {
@@ -569,6 +593,42 @@ export const ResidenciaisView: React.FC<ResidenciaisViewProps> = ({ onBackToDash
           )}
         </div>
       )}
+
+      {/* SELETOR DE MODO DE OPERAÇÃO DO RESIDENCIAL */}
+      <div className="bg-white rounded-2xl border border-pink-100 p-2 shadow-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => handleModeChange('simple')}
+            className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              operatingMode === 'simple'
+                ? 'bg-[#F04491] text-white shadow-sm ring-2 ring-[#F04491]/20'
+                : 'bg-[#FFF9FB] text-[#28232A] hover:bg-[#FCE5ED]/60 border border-pink-100/50'
+            }`}
+          >
+            <BarChart3 size={16} />
+            <span>Modo Simples — Indicadores e Quantidades</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleModeChange('advanced')}
+            className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              operatingMode === 'advanced'
+                ? 'bg-[#F04491] text-white shadow-sm ring-2 ring-[#F04491]/20'
+                : 'bg-[#FFF9FB] text-[#28232A] hover:bg-[#FCE5ED]/60 border border-pink-100/50'
+            }`}
+          >
+            <FolderOpen size={16} />
+            <span>Modo Avançado — Acompanhamento Detalhado</span>
+          </button>
+        </div>
+      </div>
+
+      {operatingMode === 'simple' ? (
+        <ResidencialSimpleModeView residencial={selectedResidencialItem} />
+      ) : (
+        <>
 
       {/* 8 INDICADORES OBRIGATÓRIOS DO RESIDENCIAL */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
@@ -971,6 +1031,9 @@ export const ResidenciaisView: React.FC<ResidenciaisViewProps> = ({ onBackToDash
             </div>
           )}
         </div>
+      )}
+
+        </>
       )}
 
       {/* MODAL DE CADASTRO / EDIÇÃO DE DOSSIÊ */}
