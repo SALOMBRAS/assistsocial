@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Loader2 } from 'lucide-react'
 import type { ActivityItem } from './ActivityCard'
 import type { ActivityCategory, ActivityStatus } from '../types/supabase'
 import { ActivityAttachmentsSection } from './ActivityAttachmentsSection'
@@ -16,7 +16,8 @@ interface ActivityModalProps {
     starts_at: string
     ends_at: string | null
     description: string | null
-  }) => void
+    pendingFiles?: File[]
+  }) => void | Promise<void>
   editingActivity: ActivityItem | null
 }
 
@@ -50,6 +51,16 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
     return '10:00'
   })
   const [description, setDescription] = useState(editingActivity?.description || '')
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleAddPendingFile = (file: File) => {
+    setPendingFiles((prev) => [...prev, file])
+  }
+
+  const handleRemovePendingFile = (index: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index))
+  }
 
   useModalA11y({
     isOpen,
@@ -60,23 +71,31 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
 
   if (!isOpen) return null
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim()) return
+    if (!title.trim() || isSubmitting) return
 
-    const starts_at = new Date(`${date}T${startTime || '09:00'}:00`).toISOString()
-    const ends_at = endTime ? new Date(`${date}T${endTime}:00`).toISOString() : null
+    setIsSubmitting(true)
+    try {
+      const starts_at = new Date(`${date}T${startTime || '09:00'}:00`).toISOString()
+      const ends_at = endTime ? new Date(`${date}T${endTime}:00`).toISOString() : null
 
-    onSave({
-      id: editingActivity?.id,
-      title: title.trim(),
-      category,
-      status,
-      starts_at,
-      ends_at,
-      description: description.trim() || null,
-    })
-    onClose()
+      await onSave({
+        id: editingActivity?.id,
+        title: title.trim(),
+        category,
+        status,
+        starts_at,
+        ends_at,
+        description: description.trim() || null,
+        pendingFiles,
+      })
+      onClose()
+    } catch (err) {
+      console.error('Erro ao salvar atividade com anexos:', err)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -214,7 +233,12 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
           </div>
 
           {/* Seção: Relatórios e Anexos */}
-          <ActivityAttachmentsSection activityId={editingActivity?.id} />
+          <ActivityAttachmentsSection
+            activityId={editingActivity?.id}
+            pendingFiles={pendingFiles}
+            onAddPendingFile={handleAddPendingFile}
+            onRemovePendingFile={handleRemovePendingFile}
+          />
 
           {/* Modal Footer Buttons */}
           <div className="pt-3 border-t border-[#F6E4EC] flex items-center justify-end gap-3 sticky bottom-0 bg-white py-2">
@@ -227,9 +251,17 @@ export const ActivityModal: React.FC<ActivityModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 min-h-[44px] rounded-2xl bg-[#F04491] hover:bg-[#DE3380] text-white text-xs md:text-sm font-bold shadow-[0_4px_14px_rgba(240,68,145,0.3)] hover:shadow-[0_6px_20px_rgba(240,68,145,0.4)] transition-all cursor-pointer transform active:scale-95"
+              disabled={isSubmitting}
+              className="px-6 py-2.5 min-h-[44px] rounded-2xl bg-[#F04491] hover:bg-[#DE3380] text-white text-xs md:text-sm font-bold shadow-[0_4px_14px_rgba(240,68,145,0.3)] hover:shadow-[0_6px_20px_rgba(240,68,145,0.4)] transition-all cursor-pointer transform active:scale-95 disabled:opacity-50 flex items-center gap-2"
             >
-              {editingActivity ? 'Salvar Alterações' : 'Criar Atividade'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>{editingActivity ? 'Salvando...' : 'Criando com Anexos...'}</span>
+                </>
+              ) : (
+                <span>{editingActivity ? 'Salvar Alterações' : pendingFiles.length > 0 ? `Criar com ${pendingFiles.length} Anexo(s)` : 'Criar Atividade'}</span>
+              )}
             </button>
           </div>
         </form>

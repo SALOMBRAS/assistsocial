@@ -11,6 +11,7 @@ import {
   Image as ImageIcon,
   Loader2,
   Paperclip,
+  X,
 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
@@ -30,11 +31,17 @@ export interface ActivityAttachment {
 interface ActivityAttachmentsSectionProps {
   activityId?: string
   readOnly?: boolean
+  pendingFiles?: File[]
+  onAddPendingFile?: (file: File) => void
+  onRemovePendingFile?: (index: number) => void
 }
 
 export const ActivityAttachmentsSection: React.FC<ActivityAttachmentsSectionProps> = ({
   activityId,
   readOnly = false,
+  pendingFiles = [],
+  onAddPendingFile,
+  onRemovePendingFile,
 }) => {
   const { user } = useAuth()
   const [attachments, setAttachments] = useState<ActivityAttachment[]>([])
@@ -107,13 +114,32 @@ export const ActivityAttachmentsSection: React.FC<ActivityAttachmentsSectionProp
     return <FileCode size={18} className="text-[#827780]" />
   }
 
-  // Upload de arquivo
+  // Upload de arquivo ou adição aos pendentes de envio
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !activityId || !user) return
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    const MAX_SIZE = 25 * 1024 * 1024
+
+    // Se a atividade AINDA NÃO foi criada, adiciona aos arquivos pendentes para envio no submit
+    if (!activityId) {
+      for (const file of files) {
+        if (file.size > MAX_SIZE) {
+          showError(`O arquivo "${file.name}" excede o limite máximo permitido de 25 MB.`)
+          continue
+        }
+        if (onAddPendingFile) {
+          onAddPendingFile(file)
+        }
+      }
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
+    const file = files[0]
+    if (!file || !user) return
 
     // Validação de Tamanho (Limite de 25MB)
-    const MAX_SIZE = 25 * 1024 * 1024
     if (file.size > MAX_SIZE) {
       showError('O arquivo selecionado excede o limite máximo permitido de 25 MB.')
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -234,7 +260,7 @@ export const ActivityAttachmentsSection: React.FC<ActivityAttachmentsSectionProp
           )}
         </div>
 
-        {!readOnly && activityId && (
+        {!readOnly && (
           <button
             type="button"
             disabled={uploading}
@@ -249,7 +275,7 @@ export const ActivityAttachmentsSection: React.FC<ActivityAttachmentsSectionProp
             ) : (
               <>
                 <Upload size={13} />
-                <span>Anexar Relatório</span>
+                <span>{activityId ? 'Anexar Relatório' : 'Anexar Arquivo'}</span>
               </>
             )}
           </button>
@@ -260,6 +286,7 @@ export const ActivityAttachmentsSection: React.FC<ActivityAttachmentsSectionProp
       <input
         ref={fileInputRef}
         type="file"
+        multiple
         className="hidden"
         onChange={handleFileChange}
         accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.txt"
@@ -280,11 +307,58 @@ export const ActivityAttachmentsSection: React.FC<ActivityAttachmentsSectionProp
         </div>
       )}
 
-      {/* Caso a atividade ainda não esteja salva */}
-      {!activityId && (
-        <p className="text-[11px] text-[#827780] italic">
-          💡 Salve a atividade primeiro para habilitar o envio e vinculação de relatórios técnicos e documentos.
-        </p>
+      {/* Lista de Arquivos Pré-selecionados para envio junto com a atividade */}
+      {pendingFiles && pendingFiles.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-bold text-[#F04491]">
+            <span>Anexos prontos para vinculação ({pendingFiles.length})</span>
+            <span className="text-[10px] text-[#827780] font-normal">Serão enviados automaticamente ao salvar</span>
+          </div>
+          <div className="space-y-1.5">
+            {pendingFiles.map((file, idx) => (
+              <div
+                key={idx}
+                className="p-2.5 rounded-2xl bg-[#FFF9FB] border border-[#F6E4EC] flex items-center justify-between gap-3 hover:border-[#F58BB5]/50 transition-all text-xs"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-1.5 rounded-xl bg-white border border-[#F6E4EC] shrink-0">
+                    {getFileIcon(file.type, file.name)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-[#28232A] truncate" title={file.name}>
+                      {file.name}
+                    </p>
+                    <p className="text-[10px] text-[#827780] flex items-center gap-2">
+                      <span>{formatFileSize(file.size)}</span>
+                      <span>•</span>
+                      <span className="text-[#36A879] font-bold">Pronto para envio</span>
+                    </p>
+                  </div>
+                </div>
+
+                {onRemovePendingFile && (
+                  <button
+                    type="button"
+                    onClick={() => onRemovePendingFile(idx)}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-[#827780] hover:text-[#D93025] hover:bg-[#FEF1F2] transition-colors cursor-pointer shrink-0"
+                    title="Remover anexo da seleção"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Dica para nova atividade sem anexos ainda */}
+      {!activityId && pendingFiles.length === 0 && (
+        <div className="p-3 rounded-2xl bg-[#FFF9FB] border border-dashed border-[#F6E4EC] text-center">
+          <p className="text-[11px] text-[#827780]">
+            📎 Você já pode selecionar relatórios, fotos ou documentos antes de salvar. Eles serão enviados e vinculados diretamente à atividade.
+          </p>
+        </div>
       )}
 
       {/* Lista de anexos existentes */}
