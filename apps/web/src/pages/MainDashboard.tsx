@@ -6,6 +6,16 @@ import {
   ShieldCheck,
   ArrowLeft,
   LogOut,
+  LayoutDashboard,
+  CalendarCheck,
+  Building2,
+  GitCommit,
+  FileSpreadsheet,
+  FileText,
+  Users,
+  SlidersHorizontal,
+  User,
+  RotateCcw,
 } from 'lucide-react'
 import { Sidebar, type NavTab } from '../components/Sidebar'
 import { Header } from '../components/Header'
@@ -24,6 +34,7 @@ import { ReportsView } from '../components/ReportsView'
 import { ServicesDirectoryView } from '../components/ServicesDirectoryView'
 import { CaseTimelineView } from '../components/CaseTimelineView'
 import { DocumentsView } from '../components/DocumentsView'
+import { DocumentEditorView } from '../components/DocumentEditorView'
 import { TeamView } from '../components/TeamView'
 import { ResidenciaisView } from '../components/ResidenciaisView'
 import { NotificationsPopover } from '../components/NotificationsPopover'
@@ -33,9 +44,103 @@ import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import type { ActivityStatus, ActivityCategory } from '../types/supabase'
 
+
+const ALL_NAV_PAGES: Array<{ id: NavTab; label: string; description: string; icon: React.ReactNode }> = [
+  { id: 'dashboard', label: 'Painel Inicial', description: 'Visão geral com indicadores, métricas e atalhos rápidos', icon: <LayoutDashboard size={16} /> },
+  { id: 'activities', label: 'Atividades', description: 'Registro e controle diário de atendimentos, visitas e tarefas', icon: <CalendarCheck size={16} /> },
+  { id: 'calendar', label: 'Agenda & Visitas', description: 'Agendamentos com lembretes e prazos de acompanhamento', icon: <CalendarIcon size={16} /> },
+  { id: 'residenciais', label: 'Residenciais', description: 'Gestão habitacional territorial com Modo Simples e Modo Avançado', icon: <Building2 size={16} /> },
+  { id: 'timeline', label: 'Linha do Tempo', description: 'Acompanhamento histórico familiar e eventos cronológicos (Em breve)', icon: <GitCommit size={16} /> },
+  { id: 'reports', label: 'Relatórios', description: 'Geração e exportação de estudos sociais e pareceres técnicos', icon: <FileSpreadsheet size={16} /> },
+  { id: 'services', label: 'Diretório de Serviços', description: 'Guia de serviços socioassistenciais do Ceará (CRAS, CREAS, etc.)', icon: <Building2 size={16} /> },
+  { id: 'documents', label: 'Pastas & Docs', description: 'Repositório confidencial de arquivos com criptografia e RLS', icon: <FileText size={16} /> },
+  { id: 'team', label: 'Compartilhamentos', description: 'Compartilhamento ético e colaboração intersetorial entre profissionais', icon: <Users size={16} /> },
+]
+
 export const MainDashboard: React.FC = () => {
   const { user, profile, isAdmin, signOut } = useAuth()
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard')
+    const [settingsSubTab, setSettingsSubTab] = useState<'profile' | 'access'>('access')
+  const [hiddenTabs, setHiddenTabs] = useState<NavTab[]>(() => {
+    try {
+      const saved = localStorage.getItem(`assistsocial_hidden_tabs_${user?.id || 'guest'}`)
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  // Sincroniza preferências salvas no Supabase
+  useEffect(() => {
+    if (!user?.id) return
+    try {
+      const local = localStorage.getItem(`assistsocial_hidden_tabs_${user.id}`)
+      if (local) setHiddenTabs(JSON.parse(local))
+    } catch {}
+
+    const loadPrefs = async () => {
+      try {
+        const { data, error } = await (supabase.from('profiles') as any)
+          .select('preferences')
+          .eq('id', user.id)
+          .single()
+
+        if (!error && data?.preferences) {
+          const prefs = data.preferences as Record<string, unknown>
+          if (Array.isArray(prefs.hidden_tabs)) {
+            setHiddenTabs(prefs.hidden_tabs as NavTab[])
+            localStorage.setItem(`assistsocial_hidden_tabs_${user.id}`, JSON.stringify(prefs.hidden_tabs))
+          }
+        }
+      } catch (err) {
+        console.warn('Preferências:', err)
+      }
+    }
+
+    loadPrefs()
+  }, [user?.id])
+
+  const handleToggleTabVisibility = async (tabId: NavTab) => {
+    if (!user?.id) return
+    const isCurrentlyHidden = hiddenTabs.includes(tabId)
+    const newHidden = isCurrentlyHidden
+      ? hiddenTabs.filter((t) => t !== tabId)
+      : [...hiddenTabs, tabId]
+
+    setHiddenTabs(newHidden)
+    localStorage.setItem(`assistsocial_hidden_tabs_${user.id}`, JSON.stringify(newHidden))
+
+    showToast(
+      isCurrentlyHidden
+        ? 'Página reativada no menu lateral! ✨'
+        : 'Página ocultada do menu lateral. 🔒'
+    )
+
+    if (!isCurrentlyHidden && currentTab === tabId) {
+      setCurrentTab('settings')
+    }
+
+    try {
+      await (supabase.rpc as any)('update_user_preferences', {
+        p_preferences: { hidden_tabs: newHidden },
+      })
+    } catch (err) {
+      console.warn('Erro ao salvar no Supabase:', err)
+    }
+  }
+
+  const handleRestoreAllTabs = async () => {
+    if (!user?.id) return
+    setHiddenTabs([])
+    localStorage.removeItem(`assistsocial_hidden_tabs_${user.id}`)
+    showToast('Todas as páginas foram restauradas no menu!')
+    try {
+      await (supabase.rpc as any)('update_user_preferences', {
+        p_preferences: { hidden_tabs: [] },
+      })
+    } catch (err) {}
+  }
+
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -371,10 +476,11 @@ export const MainDashboard: React.FC = () => {
         onLogout={signOut}
         isMobileOpen={isMobileNavOpen}
         onCloseMobile={() => setIsMobileNavOpen(false)}
+        hiddenTabs={hiddenTabs}
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 md:pl-64 flex flex-col min-w-0">
+      <div className="flex-1 md:pl-20 transition-[padding] duration-200 flex flex-col min-w-0">
         <Header
           onOpenNewActivity={() => {
             setEditingActivity(null)
@@ -619,7 +725,7 @@ export const MainDashboard: React.FC = () => {
           {/* VIEW: DOCUMENTS & STORAGE */}
           {currentTab === 'documents' && (
             <ErrorBoundary fallbackTitle="Erro ao carregar Documentos" onReset={() => setCurrentTab('dashboard')}>
-              <DocumentsView />
+              <DocumentEditorView onBackToDashboard={() => setCurrentTab('dashboard')} />
             </ErrorBoundary>
           )}
 
@@ -632,49 +738,168 @@ export const MainDashboard: React.FC = () => {
 
           {/* VIEW: SETTINGS */}
           {currentTab === 'settings' && (
-            <div className="max-w-2xl bg-white rounded-3xl p-6 md:p-8 border border-[#F6E4EC] shadow-sm space-y-6">
-              <div>
-                <h2 className="text-xl font-black text-[#28232A] tracking-tight">Perfil & Configurações</h2>
-                <p className="text-xs text-[#827780]">Gerencie suas preferências de acesso e dados cadastrais</p>
-              </div>
-
-              <div className="space-y-4 pt-2">
+            <div className="max-w-2xl bg-white rounded-2xl p-5 md:p-6 border border-[#F6E4EC] shadow-sm space-y-5 animate-fade-in">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#F6E4EC]">
                 <div>
-                  <label className="block text-xs font-bold text-[#827780] uppercase mb-1">Nome Completo</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={profileDisplayName}
-                    className="w-full px-4 py-2.5 bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-sm font-semibold text-[#28232A]"
-                  />
+                  <h2 className="text-lg md:text-xl font-black text-[#28232A] tracking-tight">Perfil & Configurações</h2>
+                  <p className="text-xs text-[#827780]">Gerencie seus dados cadastrais e personalize as páginas do menu</p>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#827780] uppercase mb-1">E-mail Cadastrado</label>
-                  <input
-                    type="email"
-                    disabled
-                    value={profileEmail}
-                    className="w-full px-4 py-2.5 bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl text-sm font-semibold text-[#28232A]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#827780] uppercase mb-1">Ambiente Supabase</label>
-                  <div className="px-4 py-3 bg-[#EBF7F1] border border-[#36A879]/30 rounded-2xl text-xs font-bold text-[#36A879] flex items-center justify-between">
-                    <span>Projeto: mnhzikgphdhohlhfsljz</span>
-                    <span>Conectado (RLS Ativo)</span>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-[#F6E4EC]">
+                {/* SUB-TABS */}
+                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#FFF9FB] border border-[#F6E4EC] self-start sm:self-auto">
                   <button
-                    onClick={signOut}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FCE8E6] text-[#D93025] hover:bg-[#D93025] hover:text-white rounded-2xl text-xs font-bold transition-all cursor-pointer"
+                    type="button"
+                    onClick={() => setSettingsSubTab('access')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      settingsSubTab === 'access'
+                        ? 'bg-[#F04491] text-white shadow-xs'
+                        : 'text-[#827780] hover:text-[#28232A]'
+                    }`}
                   >
-                    <LogOut size={15} />
-                    <span>Encerrar Sessão</span>
+                    <SlidersHorizontal size={13} />
+                    <span>Acessos & Menus</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsSubTab('profile')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      settingsSubTab === 'profile'
+                        ? 'bg-[#F04491] text-white shadow-xs'
+                        : 'text-[#827780] hover:text-[#28232A]'
+                    }`}
+                  >
+                    <User size={13} />
+                    <span>Meu Perfil</span>
                   </button>
                 </div>
               </div>
+
+              {settingsSubTab === 'access' && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="p-3.5 rounded-xl bg-[#FFF9FB] border border-[#F6E4EC] flex items-start gap-2.5">
+                    <Sparkles size={16} className="text-[#F04491] shrink-0 mt-0.5" />
+                    <div className="text-xs text-[#28232A] space-y-0.5">
+                      <p className="font-bold text-[#F04491]">Personalização de Acessos do Menu Lateral</p>
+                      <p className="text-[#827780] text-[11px] leading-relaxed">
+                        Desmarque as páginas que você não utiliza para manter seu menu enxuto e ágil. 
+                        As alterações são <strong>salvas automaticamente na sua conta</strong> e persistidas em todos os seus acessos.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {ALL_NAV_PAGES.map((page) => {
+                      const isVisible = !hiddenTabs.includes(page.id)
+                      return (
+                        <div
+                          key={page.id}
+                          className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                            isVisible
+                              ? 'bg-white border-[#F6E4EC] hover:border-[#F58BB5]/50'
+                              : 'bg-[#FAF8F9] border-gray-200/80 opacity-75'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span
+                              className={`p-2 rounded-xl shrink-0 transition-colors ${
+                                isVisible ? 'bg-[#FCE5ED] text-[#F04491]' : 'bg-gray-100 text-gray-400'
+                              }`}
+                            >
+                              {page.icon}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-bold text-[#28232A]">{page.label}</span>
+                                <span
+                                  className={`text-[10px] px-2 py-0.2 rounded-full font-bold ${
+                                    isVisible
+                                      ? 'bg-[#EBF7F1] text-[#36A879] border border-[#A7E2C6]/50'
+                                      : 'bg-gray-100 text-gray-500 border border-gray-200'
+                                  }`}
+                                >
+                                  {isVisible ? 'Visível no Menu' : 'Oculto'}
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-[#827780] block truncate">
+                                {page.description}
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleToggleTabVisibility(page.id)}
+                            role="switch"
+                            aria-checked={isVisible}
+                            aria-label={`Alternar visibilidade de ${page.label}`}
+                            className={`w-11 h-6 rounded-full transition-colors p-1 cursor-pointer flex items-center shrink-0 ${
+                              isVisible ? 'bg-[#F04491] justify-end' : 'bg-gray-300 justify-start'
+                            }`}
+                          >
+                            <span className="w-4 h-4 rounded-full bg-white shadow-xs" />
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="pt-3 border-t border-[#F6E4EC] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-[11px] text-[#36A879] font-bold flex items-center gap-1">
+                      <ShieldCheck size={14} />
+                      Sincronizado e salvo permanentemente na sua conta
+                    </span>
+                    {hiddenTabs.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleRestoreAllTabs}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#F6E4EC] hover:bg-[#FFF9FB] text-[#827780] hover:text-[#F04491] text-xs font-bold transition-all cursor-pointer self-start sm:self-auto"
+                      >
+                        <RotateCcw size={12} />
+                        <span>Restaurar Todas as Páginas</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {settingsSubTab === 'profile' && (
+                <div className="space-y-4 pt-1 animate-fade-in">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#827780] uppercase tracking-wider mb-1">Nome Completo</label>
+                    <input
+                      type="text"
+                      disabled
+                      value={profileDisplayName}
+                      className="w-full px-3.5 py-2 bg-[#FFF9FB] border border-[#F6E4EC] rounded-xl text-xs font-semibold text-[#28232A]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#827780] uppercase tracking-wider mb-1">E-mail Cadastrado</label>
+                    <input
+                      type="email"
+                      disabled
+                      value={profileEmail}
+                      className="w-full px-3.5 py-2 bg-[#FFF9FB] border border-[#F6E4EC] rounded-xl text-xs font-semibold text-[#28232A]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#827780] uppercase tracking-wider mb-1">Ambiente Supabase</label>
+                    <div className="px-3.5 py-2.5 bg-[#EBF7F1] border border-[#36A879]/30 rounded-xl text-xs font-bold text-[#36A879] flex items-center justify-between">
+                      <span>Projeto: mnhzikgphdhohlhfsljz</span>
+                      <span>Conectado (RLS Ativo)</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-[#F6E4EC]">
+                    <button
+                      onClick={signOut}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-[#FCE8E6] text-[#D93025] hover:bg-[#D93025] hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                    >
+                      <LogOut size={14} />
+                      <span>Encerrar Sessão</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </main>
