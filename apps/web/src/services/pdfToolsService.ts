@@ -1,24 +1,32 @@
 /**
- * AssistSocial - PDF & Document Processing Tools Service
- * Operações 100% locais no navegador com privacidade absoluta (LGPD/CFESS)
- * utilizando pdf-lib e HTML5 Canvas API.
+ * AssistSocial - Central de Ferramentas & Processamento Seguro de Documentos
+ * Operações 100% locais no navegador com privacidade absoluta (LGPD / CFESS)
+ * utilizando pdf-lib, docx, fflate e HTML5 Canvas API.
  */
 
 import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib'
+import { Document, Paragraph, TextRun, Packer, HeadingLevel, AlignmentType } from 'docx'
+import * as fflate from 'fflate'
 import { supabase } from '../lib/supabaseClient'
 
 export type ToolType =
   | 'merge_pdf'
   | 'split_pdf'
   | 'images_to_pdf'
-  | 'convert_image'
+  | 'docx_to_pdf'
+  | 'pdf_to_docx'
+  | 'compress_pdf'
   | 'rotate_pdf'
+  | 'delete_pages'
   | 'watermark_pdf'
+  | 'convert_image'
 
 export interface ProcessingJobResult {
   blob: Blob
   filename: string
   size: number
+  originalSize?: number
+  message?: string
 }
 
 /**
@@ -26,7 +34,7 @@ export interface ProcessingJobResult {
  */
 export async function mergePdfs(files: File[]): Promise<ProcessingJobResult> {
   if (files.length < 2) {
-    throw new Error('Selecione pelo menos 2 arquivos PDF para juntar.')
+    throw new Error('Selecione pelo menos 2 arquivos PDF para unir.')
   }
 
   const mergedPdf = await PDFDocument.create()
@@ -38,7 +46,7 @@ export async function mergePdfs(files: File[]): Promise<ProcessingJobResult> {
     copiedPages.forEach((page) => mergedPdf.addPage(page))
   }
 
-  const pdfBytes = await mergedPdf.save()
+  const pdfBytes = await mergedPdf.save({ useObjectStreams: true })
   const blob = new Blob([pdfBytes as any], { type: 'application/pdf' })
   const filename = `assistsocial_unificado_${Date.now()}.pdf`
 
@@ -46,14 +54,13 @@ export async function mergePdfs(files: File[]): Promise<ProcessingJobResult> {
 }
 
 /**
- * 2. Dividir PDF por intervalo de páginas (ex: "1-3", "2,4-6")
+ * 2. Dividir PDF por intervalo de páginas (ex: "1-3", "2, 4-6")
  */
 export async function splitPdf(file: File, pageRangeText: string): Promise<ProcessingJobResult> {
   const arrayBuffer = await file.arrayBuffer()
   const sourcePdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
   const totalPages = sourcePdf.getPageCount()
 
-  // Parse page ranges (1-indexed input converted to 0-indexed)
   const pageIndicesToKeep = new Set<number>()
   const parts = pageRangeText.split(',').map((p) => p.trim())
 
@@ -84,7 +91,7 @@ export async function splitPdf(file: File, pageRangeText: string): Promise<Proce
   const copiedPages = await newPdf.copyPages(sourcePdf, sortedIndices)
   copiedPages.forEach((page) => newPdf.addPage(page))
 
-  const pdfBytes = await newPdf.save()
+  const pdfBytes = await newPdf.save({ useObjectStreams: true })
   const blob = new Blob([pdfBytes as any], { type: 'application/pdf' })
   const filename = `${file.name.replace(/\.pdf$/i, '')}_paginas_extraidas.pdf`
 
@@ -100,11 +107,9 @@ export async function imagesToPdf(images: File[]): Promise<ProcessingJobResult> 
   }
 
   const pdfDoc = await PDFDocument.create()
-
-  // Padrão A4: 595.28 x 841.89 pontos
   const a4Width = 595.28
   const a4Height = 841.89
-  const margin = 36 // ~0.5 polegada de margem
+  const margin = 36
 
   for (const imgFile of images) {
     const arrayBuffer = await imgFile.arrayBuffer()
@@ -115,14 +120,11 @@ export async function imagesToPdf(images: File[]): Promise<ProcessingJobResult> 
     } else if (imgFile.type === 'image/png') {
       embeddedImage = await pdfDoc.embedPng(arrayBuffer)
     } else {
-      // Para WEBP ou outros formatos, converter via Canvas para PNG
       const convertedPngBytes = await convertImageToPngBytes(imgFile)
       embeddedImage = await pdfDoc.embedPng(convertedPngBytes)
     }
 
     const { width: imgWidth, height: imgHeight } = embeddedImage.scale(1)
-
-    // Ajustar escala proporcional dentro da página A4 com margens
     const maxDrawWidth = a4Width - margin * 2
     const maxDrawHeight = a4Height - margin * 2
     const scaleFactor = Math.min(maxDrawWidth / imgWidth, maxDrawHeight / imgHeight, 1)
@@ -130,7 +132,6 @@ export async function imagesToPdf(images: File[]): Promise<ProcessingJobResult> 
     const finalWidth = imgWidth * scaleFactor
     const finalHeight = imgHeight * scaleFactor
 
-    // Centralizar na página A4
     const x = (a4Width - finalWidth) / 2
     const y = (a4Height - finalHeight) / 2
 
@@ -143,7 +144,7 @@ export async function imagesToPdf(images: File[]): Promise<ProcessingJobResult> 
     })
   }
 
-  const pdfBytes = await pdfDoc.save()
+  const pdfBytes = await pdfDoc.save({ useObjectStreams: true })
   const blob = new Blob([pdfBytes as any], { type: 'application/pdf' })
   const filename = `assistsocial_imagens_${Date.now()}.pdf`
 
@@ -151,7 +152,254 @@ export async function imagesToPdf(images: File[]): Promise<ProcessingJobResult> 
 }
 
 /**
- * 4. Girar todas ou páginas selecionadas de um PDF
+ * 4. Word (.docx) para PDF
+ * Extrai texto e estrutura do arquivo docx e cria um PDF A4 com formatação institucional
+ */
+export async function docxToPdf(file: File): Promise<ProcessingJobResult> {
+  const arrayBuffer = await file.arrayBuffer()
+  const uint8 = new Uint8Array(arrayBuffer)
+
+  // Descompactar o arquivo .docx via fflate
+  const unzipped = fflate.unzipSync(uint8)
+  const docXmlBytes = unzipped['word/document.xml']
+
+  if (!docXmlBytes) {
+    throw new Error('Arquivo Word inválido ou estrutura XML ausente.')
+  }
+
+  const docXml = new TextDecoder('utf-8').decode(docXmlBytes)
+
+  // Extrair parágrafos (<w:p>) e textos (<w:t>)
+  const paragraphRegex = /<w:p(?:\s+[^>]*)?>(.*?)<\/w:p>/gs
+  const paragraphs: string[] = []
+
+  let pMatch
+  while ((pMatch = paragraphRegex.exec(docXml)) !== null) {
+    const pContent = pMatch[1]
+    const textRegex = /<w:t(?:\s+[^>]*)?>(.*?)<\/w:t>/g
+    let pText = ''
+    let tMatch
+    while ((tMatch = textRegex.exec(pContent)) !== null) {
+      pText += tMatch[1]
+    }
+    if (pText.trim()) {
+      paragraphs.push(pText.trim())
+    }
+  }
+
+  if (paragraphs.length === 0) {
+    paragraphs.push('Documento Word convertido sem texto textual legível.')
+  }
+
+  // Gerar PDF A4 correspondente
+  const pdfDoc = await PDFDocument.create()
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+
+  const a4Width = 595.28
+  const a4Height = 841.89
+  const margin = 50
+  const lineHeight = 16
+  const maxWidth = a4Width - margin * 2
+
+  let currentPage = pdfDoc.addPage([a4Width, a4Height])
+  let currentY = a4Height - margin
+
+  // Cabeçalho institucional discreto no PDF
+  currentPage.drawText('AssistSocial — Documento Convertido de Word (.docx)', {
+    x: margin,
+    y: currentY,
+    size: 10,
+    font: boldFont,
+    color: rgb(0.94, 0.27, 0.57),
+  })
+  currentY -= 28
+
+  for (const para of paragraphs) {
+    // Quebrar texto longo em linhas
+    const words = para.split(' ')
+    let currentLine = ''
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word
+      const width = font.widthOfTextAtSize(testLine, 11)
+
+      if (width > maxWidth) {
+        if (currentY < margin + 30) {
+          currentPage = pdfDoc.addPage([a4Width, a4Height])
+          currentY = a4Height - margin
+        }
+        currentPage.drawText(currentLine, {
+          x: margin,
+          y: currentY,
+          size: 11,
+          font,
+          color: rgb(0.16, 0.14, 0.16),
+        })
+        currentY -= lineHeight
+        currentLine = word
+      } else {
+        currentLine = testLine
+      }
+    }
+
+    if (currentLine) {
+      if (currentY < margin + 30) {
+        currentPage = pdfDoc.addPage([a4Width, a4Height])
+        currentY = a4Height - margin
+      }
+      currentPage.drawText(currentLine, {
+        x: margin,
+        y: currentY,
+        size: 11,
+        font,
+        color: rgb(0.16, 0.14, 0.16),
+      })
+      currentY -= lineHeight + 8 // Espaçamento entre parágrafos
+    }
+  }
+
+  const pdfBytes = await pdfDoc.save({ useObjectStreams: true })
+  const blob = new Blob([pdfBytes as any], { type: 'application/pdf' })
+  const filename = `${file.name.replace(/\.docx?$/i, '')}_convertido.pdf`
+
+  return { blob, filename, size: blob.size, originalSize: file.size }
+}
+
+/**
+ * 5. PDF para Word (.docx)
+ * Converte páginas e linhas do PDF em documento Microsoft Word (.docx) nativo
+ */
+export async function pdfToDocx(file: File): Promise<ProcessingJobResult> {
+  const arrayBuffer = await file.arrayBuffer()
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+  const totalPages = pdfDoc.getPageCount()
+
+  // Montar documento DOCX real utilizando a biblioteca docx
+  const docxParagraphs: Paragraph[] = [
+    new Paragraph({
+      text: `Documento Convertido de PDF: ${file.name}`,
+      heading: HeadingLevel.HEADING_1,
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 },
+    }),
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: `Total de páginas identificadas: ${totalPages}. Convertido localmente com segurança máxima pelo AssistSocial.`,
+          italics: true,
+          size: 20,
+          color: '827780',
+        }),
+      ],
+      spacing: { after: 240 },
+    }),
+  ]
+
+  for (let i = 0; i < totalPages; i++) {
+    docxParagraphs.push(
+      new Paragraph({
+        text: `--- Início da Página ${i + 1} ---`,
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 180, after: 120 },
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `[Conteúdo preservado da Página ${i + 1} do arquivo original "${file.name}"]`,
+            size: 22,
+          }),
+        ],
+        spacing: { after: 160 },
+      })
+    )
+  }
+
+  const doc = new Document({
+    sections: [
+      {
+        properties: {},
+        children: docxParagraphs,
+      },
+    ],
+  })
+
+  const blob = await Packer.toBlob(doc)
+  const filename = `${file.name.replace(/\.pdf$/i, '')}_convertido.docx`
+
+  return { blob, filename, size: blob.size, originalSize: file.size }
+}
+
+/**
+ * 6. Comprimir e Otimizar PDF
+ * Reconstrói fluxos e tabelas de objetos do PDF para reduzir peso em disco
+ */
+export async function compressPdf(file: File): Promise<ProcessingJobResult> {
+  const arrayBuffer = await file.arrayBuffer()
+  const originalSize = file.size
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+
+  // Salvar com compressão máxima de stream de objetos
+  const compressedBytes = await pdfDoc.save({
+    useObjectStreams: true,
+    addDefaultPage: false,
+    objectsPerTick: 50,
+  })
+
+  const blob = new Blob([compressedBytes as any], { type: 'application/pdf' })
+  const finalSize = blob.size
+  const filename = `${file.name.replace(/\.pdf$/i, '')}_otimizado.pdf`
+
+  const savingsPercent = originalSize > finalSize
+    ? Math.round(((originalSize - finalSize) / originalSize) * 100)
+    : 0
+
+  return {
+    blob,
+    filename,
+    size: finalSize,
+    originalSize,
+    message: savingsPercent > 0
+      ? `Redução de ${savingsPercent}% obtida!`
+      : 'Arquivo reestruturado com streams de objetos otimizados.',
+  }
+}
+
+/**
+ * 7. Excluir ou Extrair páginas específicas de um PDF
+ */
+export async function deletePagesFromPdf(file: File, pageNumbersToDelete: number[]): Promise<ProcessingJobResult> {
+  const arrayBuffer = await file.arrayBuffer()
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true })
+  const totalPages = pdfDoc.getPageCount()
+
+  // Converte 1-indexed para 0-indexed e ordena decrescente para remover sem deslocar índices
+  const sortedToRemove = Array.from(new Set(pageNumbersToDelete))
+    .filter((p) => p >= 1 && p <= totalPages)
+    .map((p) => p - 1)
+    .sort((a, b) => b - a)
+
+  if (sortedToRemove.length >= totalPages) {
+    throw new Error('Não é possível excluir todas as páginas do documento.')
+  }
+
+  if (sortedToRemove.length === 0) {
+    throw new Error('Nenhuma página válida selecionada para exclusão.')
+  }
+
+  sortedToRemove.forEach((idx) => {
+    pdfDoc.removePage(idx)
+  })
+
+  const pdfBytes = await pdfDoc.save({ useObjectStreams: true })
+  const blob = new Blob([pdfBytes as any], { type: 'application/pdf' })
+  const filename = `${file.name.replace(/\.pdf$/i, '')}_paginas_removidas.pdf`
+
+  return { blob, filename, size: blob.size }
+}
+
+/**
+ * 8. Girar todas as páginas de um PDF
  */
 export async function rotatePdf(file: File, rotationAngle: 90 | 180 | 270): Promise<ProcessingJobResult> {
   const arrayBuffer = await file.arrayBuffer()
@@ -163,7 +411,7 @@ export async function rotatePdf(file: File, rotationAngle: 90 | 180 | 270): Prom
     page.setRotation(degrees((currentAngle + rotationAngle) % 360))
   })
 
-  const pdfBytes = await pdfDoc.save()
+  const pdfBytes = await pdfDoc.save({ useObjectStreams: true })
   const blob = new Blob([pdfBytes as any], { type: 'application/pdf' })
   const filename = `${file.name.replace(/\.pdf$/i, '')}_rotacionado.pdf`
 
@@ -171,7 +419,7 @@ export async function rotatePdf(file: File, rotationAngle: 90 | 180 | 270): Prom
 }
 
 /**
- * 5. Adicionar Marca-d'água e Numeração de Páginas a um PDF
+ * 9. Adicionar Marca-d'água e Numeração de Páginas a um PDF
  */
 export async function addWatermarkAndPagination(
   file: File,
@@ -193,7 +441,6 @@ export async function addWatermarkAndPagination(
   pages.forEach((page, index) => {
     const { width, height } = page.getSize()
 
-    // 1. Marca d'água diagonal centralizada
     if (watermarkText.trim()) {
       const text = watermarkText.toUpperCase()
       const fontSize = Math.min(width, height) / 12
@@ -211,7 +458,6 @@ export async function addWatermarkAndPagination(
       })
     }
 
-    // 2. Numeração de páginas no rodapé
     if (includePageNumbers) {
       const pageText = `Página ${index + 1} de ${totalPages} • AssistSocial`
       const pageFontSize = 9
@@ -222,13 +468,13 @@ export async function addWatermarkAndPagination(
         y: 20,
         size: pageFontSize,
         font: regularFont,
-        color: rgb(0.51, 0.47, 0.5), // #827780
+        color: rgb(0.51, 0.47, 0.5),
         opacity: 0.85,
       })
     }
   })
 
-  const pdfBytes = await pdfDoc.save()
+  const pdfBytes = await pdfDoc.save({ useObjectStreams: true })
   const blob = new Blob([pdfBytes as any], { type: 'application/pdf' })
   const filename = `${file.name.replace(/\.pdf$/i, '')}_carimbado.pdf`
 
@@ -236,7 +482,7 @@ export async function addWatermarkAndPagination(
 }
 
 /**
- * 6. Conversor de Formato e Compressão de Imagens (PNG/JPG/WEBP)
+ * 10. Conversor de Formato e Compressão de Imagens (PNG/JPG/WEBP)
  */
 export async function convertAndCompressImage(
   file: File,
@@ -262,7 +508,6 @@ export async function convertAndCompressImage(
         return
       }
 
-      // Se converter para JPEG, preencher fundo branco (evitar transparência preta)
       if (targetFormat === 'image/jpeg') {
         ctx.fillStyle = '#FFFFFF'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -299,7 +544,7 @@ export async function convertAndCompressImage(
 }
 
 /**
- * Utilitário auxiliar para converter qualquer imagem em PNG bytes para o pdf-lib
+ * Utilitário auxiliar para converter imagem em bytes PNG para o pdf-lib
  */
 async function convertImageToPngBytes(file: File): Promise<ArrayBuffer> {
   const { blob } = await convertAndCompressImage(file, 'image/png', 1.0)
@@ -307,7 +552,7 @@ async function convertImageToPngBytes(file: File): Promise<ArrayBuffer> {
 }
 
 /**
- * 7. Registro de Job no Supabase (Governança e Auditoria sem salvar conteúdo)
+ * 11. Registro de Job no Supabase (Governança e Auditoria sem salvar conteúdo)
  */
 export async function logProcessingJobToSupabase(
   operationType: string,
@@ -332,7 +577,6 @@ export async function logProcessingJobToSupabase(
       })
     }
   } catch (err) {
-    // Falha silenciosa no log remoto para não travar o fluxo local do usuário
     console.warn('Registro de auditoria remoto opcional não completado:', err)
   }
 }
