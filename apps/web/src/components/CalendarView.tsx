@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -18,6 +18,7 @@ import {
   Check,
   Search,
   X,
+  ArrowLeft,
 } from 'lucide-react'
 import type { ActivityItem } from './ActivityCard'
 import type { ActivityStatus } from '../types/supabase'
@@ -33,15 +34,70 @@ interface CalendarViewProps {
   onSelectActivity: (activity: ActivityItem) => void
   onToggleComplete?: (id: string, currentStatus: ActivityStatus) => void
   onReschedule?: (activity: ActivityItem) => void
+  onBackToDashboard?: () => void
+}
+
+// Helper seguro de comparação de dia no fuso horário local
+export const isSameCalendarDay = (date1?: Date | string | null, date2?: Date | string | null): boolean => {
+  if (!date1 || !date2) return false
+  try {
+    const d1 = typeof date1 === 'string' ? new Date(date1) : date1
+    const d2 = typeof date2 === 'string' ? new Date(date2) : date2
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return false
+    return (
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate()
+    )
+  } catch {
+    return false
+  }
+}
+
+// Helper para formatar hora com segurança
+export const formatActivityTime = (startsAt?: string | null): string => {
+  if (!startsAt || typeof startsAt !== 'string') return '08:00'
+  try {
+    if (startsAt.includes('T')) {
+      const timePart = startsAt.split('T')[1]
+      if (timePart) return timePart.slice(0, 5)
+    }
+    const d = new Date(startsAt)
+    if (!isNaN(d.getTime())) {
+      const h = String(d.getHours()).padStart(2, '0')
+      const m = String(d.getMinutes()).padStart(2, '0')
+      return `${h}:${m}`
+    }
+  } catch {
+    // fallback
+  }
+  return '08:00'
+}
+
+// Helpers de Categoria
+export const getCategoryBadge = (category?: string | null) => {
+  switch (category) {
+    case 'visita_domiciliar':
+      return { label: 'Visita Domiciliar', icon: <Home size={12} />, bg: 'bg-[#FCE5ED] text-[#F04491]' }
+    case 'atendimento':
+      return { label: 'Atendimento Social', icon: <Users size={12} />, bg: 'bg-[#EDF2FF] text-[#4B7BFF]' }
+    case 'elaboracao_relatorio':
+      return { label: 'Relatório Técnico', icon: <FileText size={12} />, bg: 'bg-[#F5EBFF] text-[#9B51E0]' }
+    case 'reuniao':
+      return { label: 'Reunião de Rede', icon: <Briefcase size={12} />, bg: 'bg-[#FEF8EC] text-[#E59B28]' }
+    default:
+      return { label: 'Outros', icon: <Briefcase size={12} />, bg: 'bg-[#F0EEF0] text-[#827780]' }
+  }
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
-  activities,
+  activities = [],
   loading = false,
   onOpenNewActivity,
   onSelectActivity,
   onToggleComplete,
   onReschedule,
+  onBackToDashboard,
 }) => {
   const [viewMode, setViewMode] = useState<AgendaViewMode>('month')
   const [currentDate, setCurrentDate] = useState(() => new Date())
@@ -50,31 +106,45 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [selectedDayModal, setSelectedDayModal] = useState<Date | null>(null)
   const [daySearchTerm, setDaySearchTerm] = useState('')
 
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], [])
   const currentTimestamp = useMemo(() => Date.now(), [])
 
-  // Helpers de Categoria
-  const getCategoryBadge = (category: string) => {
-    switch (category) {
-      case 'visita_domiciliar':
-        return { label: 'Visita Domiciliar', icon: <Home size={12} />, bg: 'bg-[#FCE5ED] text-[#F04491]' }
-      case 'atendimento':
-        return { label: 'Atendimento Social', icon: <Users size={12} />, bg: 'bg-[#EDF2FF] text-[#4B7BFF]' }
-      case 'elaboracao_relatorio':
-        return { label: 'Relatório Técnico', icon: <FileText size={12} />, bg: 'bg-[#F5EBFF] text-[#9B51E0]' }
-      case 'reuniao':
-        return { label: 'Reunião de Rede', icon: <Briefcase size={12} />, bg: 'bg-[#FEF8EC] text-[#E59B28]' }
-      default:
-        return { label: 'Outros', icon: <Briefcase size={12} />, bg: 'bg-[#F0EEF0] text-[#827780]' }
+  // Trava scroll da tela quando o modal do dia estiver aberto no celular ou desktop
+  useEffect(() => {
+    if (selectedDayModal) {
+      const originalOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = originalOverflow
+      }
     }
-  }
+  }, [selectedDayModal])
+
+  // Helper para buscar atividades de um dia específico
+  const getActivitiesForDay = useCallback(
+    (date: Date | null) => {
+      if (!date) return []
+      return (activities || []).filter((act) => act?.starts_at && isSameCalendarDay(act.starts_at, date))
+    },
+    [activities]
+  )
+
+  const isTodayDate = useCallback((date: Date) => {
+    return isSameCalendarDay(date, new Date())
+  }, [])
 
   // Verifica se atividade está atrasada
-  const isOverdue = useCallback((act: ActivityItem) => {
-    if (act.status !== 'pending') return false
-    const actTime = new Date(act.starts_at).getTime()
-    return actTime < currentTimestamp
-  }, [currentTimestamp])
+  const isOverdue = useCallback(
+    (act: ActivityItem) => {
+      if (!act || act.status !== 'pending' || !act.starts_at) return false
+      try {
+        const actTime = new Date(act.starts_at).getTime()
+        return !isNaN(actTime) && actTime < currentTimestamp
+      } catch {
+        return false
+      }
+    },
+    [currentTimestamp]
+  )
 
   // Atividades do Modal do Dia Filtradas pela Busca
   const dayModalActivities = useMemo(() => {
@@ -82,20 +152,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     const acts = getActivitiesForDay(selectedDayModal)
     if (!daySearchTerm.trim()) return acts
     const term = daySearchTerm.toLowerCase().trim()
-    return acts.filter(
-      (act) =>
-        act.title.toLowerCase().includes(term) ||
-        (act.description && act.description.toLowerCase().includes(term)) ||
-        act.category.toLowerCase().includes(term)
-    )
-  }, [selectedDayModal, activities, daySearchTerm])
+    return acts.filter((act) => {
+      const title = (act?.title || '').toLowerCase()
+      const desc = (act?.description || '').toLowerCase()
+      const cat = (act?.category || '').toLowerCase()
+      return title.includes(term) || desc.includes(term) || cat.includes(term)
+    })
+  }, [selectedDayModal, getActivitiesForDay, daySearchTerm])
 
   // Estatísticas de Hoje e Geral
   const stats = useMemo(() => {
-    const todayActivities = activities.filter((a) => a.starts_at.startsWith(todayStr))
-    const todayCompleted = todayActivities.filter((a) => a.status === 'completed').length
-    const todayPending = todayActivities.filter((a) => a.status === 'pending').length
-    const totalOverdue = activities.filter(isOverdue).length
+    const today = new Date()
+    const todayActivities = (activities || []).filter((a) => a?.starts_at && isSameCalendarDay(a.starts_at, today))
+    const todayCompleted = todayActivities.filter((a) => a?.status === 'completed').length
+    const todayPending = todayActivities.filter((a) => a?.status === 'pending').length
+    const totalOverdue = (activities || []).filter(isOverdue).length
 
     return {
       todayTotal: todayActivities.length,
@@ -103,7 +174,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       todayPending,
       totalOverdue,
     }
-  }, [activities, todayStr, isOverdue])
+  }, [activities, isOverdue])
 
   // Navegação Temporal
   const handlePrev = () => {
@@ -136,25 +207,29 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   // Formatação de Título do Período
   const periodTitle = useMemo(() => {
-    if (viewMode === 'month') {
-      const monthName = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentDate)
-      return monthName.charAt(0).toUpperCase() + monthName.slice(1)
-    }
-    if (viewMode === 'week') {
-      const startOfWeek = new Date(currentDate)
-      startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
-      const endOfWeek = new Date(startOfWeek)
-      endOfWeek.setDate(startOfWeek.getDate() + 6)
-      const fmt = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short' })
-      return `${fmt.format(startOfWeek)} — ${fmt.format(endOfWeek)}, ${endOfWeek.getFullYear()}`
-    }
-    if (viewMode === 'day') {
-      return new Intl.DateTimeFormat('pt-BR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      }).format(currentDate)
+    try {
+      if (viewMode === 'month') {
+        const monthName = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(currentDate)
+        return monthName.charAt(0).toUpperCase() + monthName.slice(1)
+      }
+      if (viewMode === 'week') {
+        const startOfWeek = new Date(currentDate)
+        startOfWeek.setDate(currentDate.getDate() - currentDate.getDay())
+        const endOfWeek = new Date(startOfWeek)
+        endOfWeek.setDate(startOfWeek.getDate() + 6)
+        const fmt = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short' })
+        return `${fmt.format(startOfWeek)} — ${fmt.format(endOfWeek)}, ${endOfWeek.getFullYear()}`
+      }
+      if (viewMode === 'day') {
+        return new Intl.DateTimeFormat('pt-BR', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }).format(currentDate)
+      }
+    } catch {
+      // fallback
     }
     return 'Todas as Atividades Agendadas'
   }, [viewMode, currentDate])
@@ -162,7 +237,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   // Filtros aplicados na lista
   const filteredActivities = useMemo(() => {
     const nowRef = new Date()
-    return activities.filter((act) => {
+    return (activities || []).filter((act) => {
+      if (!act) return false
       // Filtro de Status
       if (statusFilter === 'pending' && act.status !== 'pending') return false
       if (statusFilter === 'completed' && act.status !== 'completed') return false
@@ -170,25 +246,37 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
       // Filtro de Período
       if (periodFilter === 'today') {
-        if (!act.starts_at.startsWith(todayStr)) return false
+        if (!act.starts_at || !isSameCalendarDay(act.starts_at, nowRef)) return false
       } else if (periodFilter === 'week') {
-        const actDate = new Date(act.starts_at)
-        const startOfWeek = new Date(nowRef)
-        startOfWeek.setDate(nowRef.getDate() - nowRef.getDay())
-        startOfWeek.setHours(0, 0, 0, 0)
-        const endOfWeek = new Date(startOfWeek)
-        endOfWeek.setDate(startOfWeek.getDate() + 7)
-        if (actDate < startOfWeek || actDate >= endOfWeek) return false
+        if (!act.starts_at) return false
+        try {
+          const actDate = new Date(act.starts_at)
+          if (isNaN(actDate.getTime())) return false
+          const startOfWeek = new Date(nowRef)
+          startOfWeek.setDate(nowRef.getDate() - nowRef.getDay())
+          startOfWeek.setHours(0, 0, 0, 0)
+          const endOfWeek = new Date(startOfWeek)
+          endOfWeek.setDate(startOfWeek.getDate() + 7)
+          if (actDate < startOfWeek || actDate >= endOfWeek) return false
+        } catch {
+          return false
+        }
       } else if (periodFilter === 'month') {
-        const actDate = new Date(act.starts_at)
-        if (actDate.getFullYear() !== nowRef.getFullYear() || actDate.getMonth() !== nowRef.getMonth()) {
+        if (!act.starts_at) return false
+        try {
+          const actDate = new Date(act.starts_at)
+          if (isNaN(actDate.getTime())) return false
+          if (actDate.getFullYear() !== nowRef.getFullYear() || actDate.getMonth() !== nowRef.getMonth()) {
+            return false
+          }
+        } catch {
           return false
         }
       }
 
       return true
     })
-  }, [activities, statusFilter, periodFilter, todayStr, isOverdue])
+  }, [activities, statusFilter, periodFilter, isOverdue])
 
   // Dados do Mês
   const monthDays = useMemo(() => {
@@ -220,22 +308,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return days
   }, [currentDate])
 
-  // Atividades por dia
-  const getActivitiesForDay = (date: Date) => {
-    const dStr = date.toISOString().split('T')[0]
-    return activities.filter((act) => act.starts_at.startsWith(dStr))
-  }
-
-  const isTodayDate = (date: Date) => {
-    return date.toISOString().split('T')[0] === todayStr
-  }
-
   return (
     <div className="space-y-6 animate-fade-in">
       {/* 1. TOPO DA AGENDA INTELIGENTE */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {onBackToDashboard && (
+              <button
+                type="button"
+                onClick={onBackToDashboard}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#F6E4EC] text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED]/40 text-xs font-bold transition-all cursor-pointer shadow-xs mr-1"
+                title="Voltar ao Painel Inicial"
+              >
+                <ArrowLeft size={14} />
+                <span>Painel Inicial</span>
+              </button>
+            )}
             <span className="p-2 rounded-2xl bg-[#FCE5ED] text-[#F04491]">
               <CalendarIcon size={20} />
             </span>
@@ -251,6 +340,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         {/* Botão Principal Nova Atividade */}
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={onOpenNewActivity}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#F04491] hover:bg-[#DE3380] text-white text-xs font-bold shadow-[0_4px_12px_rgba(240,68,145,0.25)] transition-all cursor-pointer"
           >
@@ -310,9 +400,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         >
           <div>
             <span className="text-[11px] font-semibold block">Atrasadas</span>
-            <span className="text-xl font-black">
-              {stats.totalOverdue}
-            </span>
+            <span className="text-xl font-black">{stats.totalOverdue}</span>
           </div>
           <div
             className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
@@ -336,6 +424,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={() => {
               setStatusFilter('overdue')
               setViewMode('list')
@@ -352,6 +441,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         {/* Modos: Mês / Semana / Dia / Lista */}
         <div className="flex items-center gap-1 bg-[#FFF9FB] p-1 rounded-2xl border border-[#F6E4EC] self-start md:self-auto overflow-x-auto">
           <button
+            type="button"
             onClick={() => setViewMode('month')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               viewMode === 'month'
@@ -363,6 +453,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <span>Mês</span>
           </button>
           <button
+            type="button"
             onClick={() => setViewMode('week')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               viewMode === 'week'
@@ -374,6 +465,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <span>Semana</span>
           </button>
           <button
+            type="button"
             onClick={() => setViewMode('day')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               viewMode === 'day'
@@ -385,6 +477,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <span>Dia</span>
           </button>
           <button
+            type="button"
             onClick={() => setViewMode('list')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               viewMode === 'list'
@@ -401,6 +494,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         {viewMode !== 'list' ? (
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={handleGoToday}
               className="px-3 py-1.5 rounded-xl bg-[#FCE5ED] text-[#F04491] text-xs font-bold hover:bg-[#FAD5E3] transition-colors cursor-pointer"
             >
@@ -408,6 +502,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </button>
             <div className="flex items-center rounded-2xl bg-[#FFF9FB] border border-[#F6E4EC] p-1">
               <button
+                type="button"
                 onClick={handlePrev}
                 title="Anterior"
                 className="p-1.5 rounded-xl text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED] cursor-pointer"
@@ -418,6 +513,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 {periodTitle}
               </span>
               <button
+                type="button"
                 onClick={handleNext}
                 title="Próximo"
                 className="p-1.5 rounded-xl text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED] cursor-pointer"
@@ -447,6 +543,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           return (
             <button
               key={f.id}
+              type="button"
               onClick={() => setStatusFilter(f.id as StatusFilter)}
               className={`px-3 py-1.5 rounded-2xl font-bold transition-all cursor-pointer ${
                 isSelected
@@ -473,6 +570,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           return (
             <button
               key={p.id}
+              type="button"
               onClick={() => setPeriodFilter(p.id as PeriodFilter)}
               className={`px-3 py-1.5 rounded-2xl font-bold transition-all cursor-pointer ${
                 isSelected
@@ -562,7 +660,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               key={act.id}
                               className={`w-1.5 h-1.5 rounded-full ${
                                 overdue
-                                  ? 'bg-[#D93025]'
+                                    ? 'bg-[#D93025]'
                                   : act.status === 'completed'
                                   ? 'bg-[#36A879]'
                                   : 'bg-[#F04491]'
@@ -659,9 +757,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         ) : (
                           dayActs.map((act) => {
                             const overdue = isOverdue(act)
-                            const timeStr = act.starts_at.includes('T')
-                              ? act.starts_at.split('T')[1].slice(0, 5)
-                              : ''
+                            const timeStr = formatActivityTime(act?.starts_at)
                             return (
                               <div
                                 key={act.id}
@@ -707,9 +803,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           {/* MODO DIA */}
           {viewMode === 'day' && (
             <div className="bg-white rounded-3xl border border-[#F6E4EC] shadow-[0_2px_12px_rgba(240,68,145,0.03)] p-4 md:p-8 space-y-4">
-              <div className="flex items-center justify-between pb-4 border-b border-[#F6E4EC]">
+              <div className="flex items-center justify-between pb-4 border-b border-[#F6E4EC] flex-wrap gap-2">
                 <div className="flex items-center gap-3">
                   <button
+                    type="button"
                     onClick={() => setViewMode('month')}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FFF9FB] border border-[#F6E4EC] text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED] text-xs font-bold transition-all cursor-pointer shadow-sm"
                     title="Voltar ao Calendário Mensal"
@@ -718,13 +815,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     <span>Voltar ao Mês</span>
                   </button>
                   <div>
-                  <h3 className="text-base font-black text-[#28232A] capitalize">{periodTitle}</h3>
-                  <p className="text-xs text-[#827780]">
-                    {getActivitiesForDay(currentDate).length} atividade(s) agendada(s) para esta data
+                    <h3 className="text-base font-black text-[#28232A] capitalize">{periodTitle}</h3>
+                    <p className="text-xs text-[#827780]">
+                      {getActivitiesForDay(currentDate).length} atividade(s) agendada(s) para esta data
                     </p>
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={onOpenNewActivity}
                   className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-[#F04491] text-white text-xs font-bold shadow-sm hover:bg-[#DE3380] cursor-pointer"
                 >
@@ -744,6 +842,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     Aproveite para organizar prontuários ou agendar novas visitas e atendimentos.
                   </p>
                   <button
+                    type="button"
                     onClick={onOpenNewActivity}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-[#F04491] text-white text-xs font-bold hover:bg-[#DE3380] cursor-pointer"
                   >
@@ -755,10 +854,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 <div className="space-y-3">
                   {getActivitiesForDay(currentDate).map((act) => {
                     const overdue = isOverdue(act)
-                    const catInfo = getCategoryBadge(act.category)
-                    const timeStr = act.starts_at.includes('T')
-                      ? act.starts_at.split('T')[1].slice(0, 5)
-                      : '08:00'
+                    const catInfo = getCategoryBadge(act?.category)
+                    const timeStr = formatActivityTime(act?.starts_at)
 
                     return (
                       <div
@@ -775,6 +872,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           {/* Toggle Rápido */}
                           {onToggleComplete && (
                             <button
+                              type="button"
                               onClick={() => onToggleComplete(act.id, act.status)}
                               title={act.status === 'completed' ? 'Marcar como pendente' : 'Marcar como concluída'}
                               className={`w-6 h-6 rounded-lg flex items-center justify-center border mt-0.5 cursor-pointer transition-all ${
@@ -823,6 +921,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         <div className="flex items-center gap-2 self-end sm:self-center">
                           {onReschedule && act.status !== 'completed' && (
                             <button
+                              type="button"
                               onClick={() => onReschedule(act)}
                               className="px-3 py-1.5 rounded-xl bg-white border border-[#F6E4EC] text-xs font-semibold text-[#827780] hover:text-[#F04491] hover:border-[#F04491] transition-colors flex items-center gap-1.5 cursor-pointer"
                             >
@@ -831,6 +930,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             </button>
                           )}
                           <button
+                            type="button"
                             onClick={() => onSelectActivity(act)}
                             className="px-3 py-1.5 rounded-xl bg-[#FCE5ED] text-[#F04491] text-xs font-bold hover:bg-[#FAD5E3] transition-colors cursor-pointer"
                           >
@@ -862,14 +962,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 <div className="divide-y divide-[#F6E4EC]">
                   {filteredActivities.map((act) => {
                     const overdue = isOverdue(act)
-                    const catInfo = getCategoryBadge(act.category)
-                    const dateFormatted = new Intl.DateTimeFormat('pt-BR', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    }).format(new Date(act.starts_at))
+                    const catInfo = getCategoryBadge(act?.category)
+                    const dateFormatted = act?.starts_at
+                      ? new Intl.DateTimeFormat('pt-BR', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }).format(new Date(act.starts_at))
+                      : 'Data não informada'
 
                     return (
                       <div
@@ -879,6 +981,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         <div className="flex items-start gap-3">
                           {onToggleComplete && (
                             <button
+                              type="button"
                               onClick={() => onToggleComplete(act.id, act.status)}
                               title={act.status === 'completed' ? 'Marcar como pendente' : 'Marcar como concluída'}
                               className={`w-6 h-6 rounded-lg flex items-center justify-center border mt-0.5 cursor-pointer transition-all ${
@@ -931,6 +1034,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         <div className="flex items-center gap-2 self-end sm:self-center">
                           {onReschedule && act.status !== 'completed' && (
                             <button
+                              type="button"
                               onClick={() => onReschedule(act)}
                               className="px-3 py-1.5 rounded-xl bg-white border border-[#F6E4EC] text-xs font-semibold text-[#827780] hover:text-[#F04491] hover:border-[#F04491] transition-colors flex items-center gap-1.5 cursor-pointer"
                             >
@@ -939,6 +1043,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             </button>
                           )}
                           <button
+                            type="button"
                             onClick={() => onSelectActivity(act)}
                             className="px-3 py-1.5 rounded-xl bg-[#FCE5ED] text-[#F04491] text-xs font-bold hover:bg-[#FAD5E3] transition-colors cursor-pointer"
                           >
@@ -955,28 +1060,36 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         </>
       )}
 
-      {/* MODAL / CARD COMPLETO DE ATIVIDADES DO DIA */}
+      {/* MODAL / CARD COMPLETO DE ATIVIDADES DO DIA COM BOTTOM-SHEET NO CELULAR */}
       {selectedDayModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-2xl bg-white rounded-3xl shadow-[0_20px_50px_rgba(240,68,145,0.18)] border border-[#F6E4EC] overflow-hidden flex flex-col max-h-[85vh] animate-scale-up">
-            
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
+          onClick={() => setSelectedDayModal(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-3xl shadow-[0_20px_50px_rgba(240,68,145,0.22)] border border-[#F6E4EC] overflow-hidden flex flex-col h-[88dvh] sm:h-auto sm:max-h-[85vh] animate-slide-up sm:animate-scale-up"
+          >
+            {/* Puxador para celular (Touch Drag Handle) */}
+            <div className="w-12 h-1 bg-[#827780]/30 rounded-full mx-auto my-2.5 sm:hidden shrink-0" />
+
             {/* Cabeçalho do Card */}
-            <div className="px-6 py-5 border-b border-[#F6E4EC] flex items-center justify-between bg-gradient-to-r from-[#FFF9FB] to-white">
+            <div className="px-5 sm:px-6 py-3 sm:py-5 border-b border-[#F6E4EC] flex items-center justify-between shrink-0 bg-gradient-to-r from-[#FFF9FB] to-white">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-[#FCE5ED] text-[#F04491] flex items-center justify-center shrink-0 shadow-sm">
                   <CalendarIcon size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-[#28232A] capitalize">
+                  <h3 className="text-sm sm:text-base font-black text-[#28232A] capitalize">
                     {new Intl.DateTimeFormat('pt-BR', {
-                      weekday: 'long',
+                      weekday: 'short',
                       day: 'numeric',
                       month: 'long',
-                      year: 'numeric'
+                      year: 'numeric',
                     }).format(selectedDayModal)}
                   </h3>
                   <p className="text-xs text-[#827780]">
-                    {getActivitiesForDay(selectedDayModal).length} atividade(s) agendada(s) para este dia
+                    {getActivitiesForDay(selectedDayModal).length} atividade(s) agendada(s)
                   </p>
                 </div>
               </div>
@@ -988,10 +1101,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     setSelectedDayModal(null)
                     onOpenNewActivity()
                   }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-[#F04491] hover:bg-[#DE3380] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl bg-[#F04491] hover:bg-[#DE3380] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
                 >
                   <Plus size={14} />
-                  <span>Nova Atividade</span>
+                  <span className="hidden xs:inline">Nova Atividade</span>
+                  <span className="xs:hidden">Nova</span>
                 </button>
                 <button
                   type="button"
@@ -1005,16 +1119,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </div>
 
             {/* Barra de Pesquisa no Topo do Modal */}
-            <div className="p-4 border-b border-[#F6E4EC] bg-[#FFF9FB]/60">
+            <div className="p-3 sm:p-4 border-b border-[#F6E4EC] bg-[#FFF9FB]/60 shrink-0">
               <div className="relative">
                 <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#827780]" />
                 <input
                   type="text"
-                  autoFocus
-                  placeholder="Pesquisar atividades deste dia por nome, descrição ou tipo..."
+                  placeholder="Pesquisar atividades deste dia..."
                   value={daySearchTerm}
                   onChange={(e) => setDaySearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2.5 bg-white border border-[#F6E4EC] rounded-2xl text-xs font-semibold text-[#28232A] placeholder:text-[#827780]/60 focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491] shadow-sm transition-all"
+                  className="w-full pl-9 pr-8 py-2 bg-white border border-[#F6E4EC] rounded-2xl text-xs font-semibold text-[#28232A] placeholder:text-[#827780]/60 focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491] shadow-xs transition-all"
                 />
                 {daySearchTerm && (
                   <button
@@ -1028,8 +1141,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               </div>
             </div>
 
-            {/* Lista de Atividades do Dia com Scroll */}
-            <div className="p-6 overflow-y-auto space-y-3 flex-1">
+            {/* Lista de Atividades do Dia com Scroll Fluido em Celular & Computador */}
+            <div
+              className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-3"
+              style={{
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-y',
+              }}
+            >
               {getActivitiesForDay(selectedDayModal).length === 0 ? (
                 /* Estado Vazio Quando o Dia NÃO tem Atividades */
                 <div className="py-12 text-center space-y-4">
@@ -1075,18 +1194,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   </button>
                 </div>
               ) : (
-                /* Lista Completa das Atividades (suporta dezenas/centenas de atividades com scroll) */
+                /* Lista Completa das Atividades (suporta centenas de atividades com scroll fluido) */
                 dayModalActivities.map((act) => {
                   const overdue = isOverdue(act)
-                  const catInfo = getCategoryBadge(act.category)
-                  const timeStr = act.starts_at.includes('T')
-                    ? act.starts_at.split('T')[1].slice(0, 5)
-                    : '08:00'
+                  const catInfo = getCategoryBadge(act?.category)
+                  const timeStr = formatActivityTime(act?.starts_at)
 
                   return (
                     <div
                       key={act.id}
-                      className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                      className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                         overdue
                           ? 'bg-[#FEF1F2]/60 border-[#FCA5A5]'
                           : act.status === 'completed'
@@ -1185,7 +1302,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </div>
 
             {/* Rodapé do Modal */}
-            <div className="px-6 py-3 border-t border-[#F6E4EC] bg-[#FFF9FB] flex items-center justify-between text-xs text-[#827780]">
+            <div className="px-5 sm:px-6 py-3 border-t border-[#F6E4EC] bg-[#FFF9FB] flex items-center justify-between text-xs text-[#827780] shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-3">
               <span>
                 Exibindo {dayModalActivities.length} de {getActivitiesForDay(selectedDayModal).length} atividade(s)
               </span>

@@ -61,6 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ]
 
   return (
+    <>
     <aside className="hidden md:flex flex-col w-64 bg-white border-r border-[#F6E4EC] fixed left-0 top-0 bottom-0 z-30 shadow-[2px_0_12px_rgba(240,68,145,0.03)]">
       {/* Brand Header */}
       <div className="p-6 border-b border-[#F6E4EC]/60 flex items-center gap-3">
@@ -174,6 +175,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <LogOut size={16} />
         </button>
       </div>
+      </aside>
+
       {/* Mobile Slide-in Drawer */}
       {isMobileOpen && (
         <div
@@ -307,6 +310,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
       )}
-    </aside>
+    </>
   )
 }

@@ -4,6 +4,7 @@ import {
   Calendar as CalendarIcon,
   Sparkles,
   ShieldCheck,
+  ArrowLeft,
   LogOut,
 } from 'lucide-react'
 import { Sidebar, type NavTab } from '../components/Sidebar'
@@ -25,6 +26,7 @@ import { CaseTimelineView } from '../components/CaseTimelineView'
 import { DocumentsView } from '../components/DocumentsView'
 import { TeamView } from '../components/TeamView'
 import { ResidenciaisView } from '../components/ResidenciaisView'
+import { ErrorBoundary } from '../components/ErrorBoundary'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import type { ActivityStatus, ActivityCategory } from '../types/supabase'
@@ -192,7 +194,7 @@ export const MainDashboard: React.FC = () => {
     }
   }
 
-  // 6. Criar ou Salvar atividade
+  // 6. Criar ou Salvar atividade com upload imediato de anexos vinculados
   const handleSaveActivity = async (data: {
     id?: string
     title: string
@@ -201,8 +203,11 @@ export const MainDashboard: React.FC = () => {
     starts_at: string
     ends_at: string | null
     description: string | null
+    pendingFiles?: File[]
   }) => {
     if (!user) return
+
+    let targetActivityId = data.id
 
     if (data.id) {
       // Edição
@@ -212,7 +217,15 @@ export const MainDashboard: React.FC = () => {
       showToast('Atividade atualizada com sucesso! ✨')
       try {
         await (supabase.from('activities') as any)
-          .update({ ...data, updated_at: new Date().toISOString() })
+          .update({
+            title: data.title,
+            category: data.category,
+            status: data.status,
+            starts_at: data.starts_at,
+            ends_at: data.ends_at,
+            description: data.description,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', data.id)
       } catch (err) {
         console.error('Erro ao atualizar atividade:', err)
@@ -241,25 +254,61 @@ export const MainDashboard: React.FC = () => {
           .single()
 
         if (!error && insertedData) {
+          targetActivityId = insertedData.id
           setActivities((prev) => [insertedData, ...prev])
           showToast('Nova atividade registrada no Supabase! 🌸')
         } else {
           // Fallback local se RLS bloquear ou rede
+          targetActivityId = 'act-' + Date.now()
           const fallbackItem: ActivityItem = {
-            id: 'act-' + Date.now(),
+            id: targetActivityId,
             ...newActivity,
           }
           setActivities((prev) => [fallbackItem, ...prev])
           showToast('Atividade salva localmente.')
         }
       } catch {
+        targetActivityId = 'act-' + Date.now()
         const fallbackItem: ActivityItem = {
-          id: 'act-' + Date.now(),
+          id: targetActivityId,
           ...newActivity,
         }
         setActivities((prev) => [fallbackItem, ...prev])
       }
     }
+
+    // Processamento dos anexos selecionados junto com a atividade
+    if (data.pendingFiles && data.pendingFiles.length > 0 && targetActivityId) {
+      let uploadCount = 0
+      for (const file of data.pendingFiles) {
+        try {
+          const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+          const storagePath = `${user.id}/activities/${targetActivityId}/${Date.now()}_${cleanName}`
+
+          const { error: storageError } = await supabase.storage
+            .from('documents')
+            .upload(storagePath, file, { cacheControl: '3600', upsert: false })
+
+          if (!storageError) {
+            await (supabase.from('activity_attachments') as any).insert({
+              activity_id: targetActivityId,
+              uploader_id: user.id,
+              storage_path: storagePath,
+              original_name: file.name,
+              mime_type: file.type || 'application/octet-stream',
+              file_size: file.size,
+            })
+            uploadCount++
+          }
+        } catch (uploadErr) {
+          console.warn('Erro ao processar anexo pendente:', uploadErr)
+        }
+      }
+      if (uploadCount > 0) {
+        showToast(`${uploadCount} anexo(s) vinculado(s) com sucesso à atividade! 📎`)
+      }
+    }
+
     setEditingActivity(null)
   }
 
@@ -314,10 +363,23 @@ export const MainDashboard: React.FC = () => {
           onSearchChange={setSearchTerm}
           totalActivitiesCount={activities.length}
           profileName={profileDisplayName}
-          onToggleMobileMenu={() => setIsMobileNavOpen((prev) => !prev)}
         />
 
         <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-12">
+          {/* BOTÃO DISCRETO PARA VOLTAR AO MENU INICIAL EM ABAS DISTANTES */}
+          {currentTab !== 'dashboard' && (
+            <div className="mb-4">
+              <button
+                type="button"
+                onClick={() => setCurrentTab('dashboard')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-[#FCE5ED]/50 text-[#827780] hover:text-[#F04491] border border-[#F6E4EC] text-xs font-bold transition-all shadow-xs group cursor-pointer"
+                title="Voltar ao Painel Inicial"
+              >
+                <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-0.5 text-[#827780] group-hover:text-[#F04491]" />
+                <span>Voltar ao Painel Inicial</span>
+              </button>
+            </div>
+          )}
           {/* VIEW: DASHBOARD & ATIVIDADES */}
           {(currentTab === 'dashboard' || currentTab === 'activities') && (
             <>
@@ -469,58 +531,81 @@ export const MainDashboard: React.FC = () => {
           )}
 
           {/* VIEW: RESIDENCIAIS (PAUPINA & JOAQUIM MACHADO) */}
-          {currentTab === 'residenciais' && <ResidenciaisView />}
+          {currentTab === 'residenciais' && (
+            <ErrorBoundary fallbackTitle="Erro ao carregar Área dos Residenciais" onReset={() => setCurrentTab('dashboard')}>
+              <ResidenciaisView onBackToDashboard={() => setCurrentTab('dashboard')} />
+            </ErrorBoundary>
+          )}
 
           {/* VIEW: AGENDA & CALENDAR */}
           {currentTab === 'calendar' && (
-            <CalendarView
-              activities={activities}
-              loading={loading}
-              onOpenNewActivity={() => {
-                setEditingActivity(null)
-                setIsModalOpen(true)
-              }}
-              onSelectActivity={(activity) => {
-                setEditingActivity(activity)
-                setIsModalOpen(true)
-              }}
-              onToggleComplete={handleToggleComplete}
-              onReschedule={(activity) => setRescheduleTarget(activity)}
-            />
+            <ErrorBoundary fallbackTitle="Erro ao carregar a Agenda" onReset={() => setCurrentTab('dashboard')}>
+              <CalendarView
+                activities={activities}
+                loading={loading}
+                onOpenNewActivity={() => {
+                  setEditingActivity(null)
+                  setIsModalOpen(true)
+                }}
+                onSelectActivity={(activity) => {
+                  setEditingActivity(activity)
+                  setIsModalOpen(true)
+                }}
+                onToggleComplete={handleToggleComplete}
+                onReschedule={(activity) => setRescheduleTarget(activity)}
+                onBackToDashboard={() => setCurrentTab('dashboard')}
+              />
+            </ErrorBoundary>
           )}
 
           {/* VIEW: REPORTS & METRICS */}
           {currentTab === 'reports' && (
-            <ReportsView
-              activities={activities}
-              profileName={profileDisplayName}
-            />
+            <ErrorBoundary fallbackTitle="Erro ao carregar Relatórios" onReset={() => setCurrentTab('dashboard')}>
+              <ReportsView
+                activities={activities}
+                profileName={profileDisplayName}
+              />
+            </ErrorBoundary>
           )}
 
           {/* VIEW: CASE TIMELINE */}
           {currentTab === 'timeline' && (
-            <CaseTimelineView
-              activities={activities}
-              profileName={profileDisplayName}
-              onOpenNewActivity={() => {
-                setEditingActivity(null)
-                setIsModalOpen(true)
-              }}
-              onSelectActivity={(activity) => {
-                setEditingActivity(activity)
-                setIsModalOpen(true)
-              }}
-            />
+            <ErrorBoundary fallbackTitle="Erro ao carregar Linha do Tempo" onReset={() => setCurrentTab('dashboard')}>
+              <CaseTimelineView
+                activities={activities}
+                profileName={profileDisplayName}
+                onOpenNewActivity={() => {
+                  setEditingActivity(null)
+                  setIsModalOpen(true)
+                }}
+                onSelectActivity={(activity) => {
+                  setEditingActivity(activity)
+                  setIsModalOpen(true)
+                }}
+              />
+            </ErrorBoundary>
           )}
 
           {/* VIEW: SERVICES DIRECTORY (HSDS) */}
-          {currentTab === 'services' && <ServicesDirectoryView />}
+          {currentTab === 'services' && (
+            <ErrorBoundary fallbackTitle="Erro ao carregar Guia de Serviços" onReset={() => setCurrentTab('dashboard')}>
+              <ServicesDirectoryView />
+            </ErrorBoundary>
+          )}
 
           {/* VIEW: DOCUMENTS & STORAGE */}
-          {currentTab === 'documents' && <DocumentsView />}
+          {currentTab === 'documents' && (
+            <ErrorBoundary fallbackTitle="Erro ao carregar Documentos" onReset={() => setCurrentTab('dashboard')}>
+              <DocumentsView />
+            </ErrorBoundary>
+          )}
 
           {/* VIEW: TEAM & SHARES */}
-          {currentTab === 'team' && <TeamView />}
+          {currentTab === 'team' && (
+            <ErrorBoundary fallbackTitle="Erro ao carregar Equipe" onReset={() => setCurrentTab('dashboard')}>
+              <TeamView />
+            </ErrorBoundary>
+          )}
 
           {/* VIEW: SETTINGS */}
           {currentTab === 'settings' && (
