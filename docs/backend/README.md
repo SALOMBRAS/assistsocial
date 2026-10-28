@@ -28,6 +28,8 @@ Bem-vindo à documentação oficial da infraestrutura de backend, banco de dados
    - Especificação canônica da Edge Function `admin-create-user`, geração de senha temporária de uso único, eliminação de disparo de e-mails, RPCs seguras de troca de senha no primeiro acesso e governança anti-órfãos.
 11. [11. Residenciais (Paupina e Joaquim Machado), Dossiês, Lotes e Anexos de Atividades](./11_residenciais_dossiers_and_attachments.md)
    - Gestão territorial, acompanhamento de dossiês pelos 8 indicadores, envios de lotes, controle de procurações para quem não assina e anexos de relatórios técnicos em atividades via Supabase Storage.
+12. [12. Modo Simples dos Residenciais — Indicadores Agregados e Sigilo LGPD](./12_residential_simple_mode.md)
+   - Arquitetura, persistência atômica e auditoria de indicadores agregados por residencial com conformidade total à LGPD (sem nomes, CPFs ou arquivos confidenciais), preservando o Modo Avançado.
 
 ---
 
