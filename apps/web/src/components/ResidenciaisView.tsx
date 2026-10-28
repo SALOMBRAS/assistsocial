@@ -20,11 +20,23 @@ import {
   X,
   ArrowLeft,
 } from 'lucide-react'
+import {
+  ChevronDown,
+  MapPin,
+  Building,
+  Accessibility,
+} from 'lucide-react'
+import {
+  fetchResidenciaisList,
+  DEFAULT_RESIDENCIAIS,
+} from '../services/residentialService'
+import { ResidencialModal } from './ResidencialModal'
+import type { ResidencialItem } from '../types/supabase'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 import { useModalA11y } from '../hooks/useModalA11y'
 
-export type ResidencialSlug = 'paupina' | 'joaquim_machado'
+export type ResidencialSlug = string
 export type ResidentialSubTab = 'dossiers' | 'batches' | 'proxies'
 
 export type OperationalStatus =
@@ -72,7 +84,38 @@ export interface ResidenciaisViewProps {
 
 export const ResidenciaisView: React.FC<ResidenciaisViewProps> = ({ onBackToDashboard }) => {
   const { user } = useAuth()
+  const [residenciaisList, setResidenciaisList] = useState<ResidencialItem[]>(DEFAULT_RESIDENCIAIS)
   const [selectedResidencial, setSelectedResidencial] = useState<ResidencialSlug>('paupina')
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false)
+  const [residencialSearchTerm, setResidencialSearchTerm] = useState('')
+  const [isResidencialModalOpen, setIsResidencialModalOpen] = useState(false)
+  const [editingResidencialItem, setEditingResidencialItem] = useState<ResidencialItem | null>(null)
+
+  useEffect(() => {
+    fetchResidenciaisList().then((list) => {
+      if (list && list.length > 0) {
+        setResidenciaisList(list)
+        if (!list.some((r) => r.slug === selectedResidencial)) {
+          setSelectedResidencial(list[0].slug)
+        }
+      }
+    })
+  }, [])
+
+  const selectedResidencialItem = useMemo(() => {
+    return residenciaisList.find((r) => r.slug === selectedResidencial) || residenciaisList[0] || DEFAULT_RESIDENCIAIS[0]
+  }, [residenciaisList, selectedResidencial])
+
+  const filteredResidenciaisList = useMemo(() => {
+    const term = residencialSearchTerm.toLowerCase().trim()
+    if (!term) return residenciaisList
+    return residenciaisList.filter(
+      (r) =>
+        r.name.toLowerCase().includes(term) ||
+        r.address.toLowerCase().includes(term) ||
+        r.slug.toLowerCase().includes(term)
+    )
+  }, [residenciaisList, residencialSearchTerm])
   const [currentSubTab, setCurrentSubTab] = useState<ResidentialSubTab>('dossiers')
   
   // Dados do Supabase
@@ -336,36 +379,196 @@ export const ResidenciaisView: React.FC<ResidenciaisViewProps> = ({ onBackToDash
           </p>
         </div>
 
-        {/* BOTÕES DE TROCA DE RESIDENCIAL */}
-        <div className="flex items-center p-1 bg-[#FFF9FB] border border-[#F6E4EC] rounded-2xl shadow-sm">
+        {/* CONTROLES: SELETOR EXPANSÍVEL E CADASTRO */}
+        <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
+          {/* Seletor Expansível */}
+          <div className="relative flex-1 md:flex-initial">
+            <button
+              type="button"
+              onClick={() => setIsSelectorOpen((prev) => !prev)}
+              className="w-full md:w-auto px-4 py-2.5 rounded-2xl border border-[#F6E4EC] bg-[#FFF9FB] hover:bg-[#FCE5ED]/60 text-[#28232A] text-xs md:text-sm font-bold flex items-center justify-between gap-2.5 transition-all cursor-pointer shadow-xs min-h-[44px]"
+              aria-expanded={isSelectorOpen}
+              aria-label="Selecionar residencial"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <Building2 size={16} className="text-[#F04491] shrink-0" />
+                <span className="truncate">
+                  {selectedResidencialItem ? selectedResidencialItem.name : 'Selecionar residencial'}
+                </span>
+              </div>
+              <ChevronDown
+                size={16}
+                className={`text-[#827780] transition-transform duration-200 shrink-0 ${
+                  isSelectorOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {/* Menu Dropdown Expansível com Filtro por Digitação */}
+            {isSelectorOpen && (
+              <div className="absolute right-0 left-0 md:left-auto md:w-80 top-full mt-2 bg-white rounded-2xl border border-[#F6E4EC] shadow-2xl z-30 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                <div className="p-3 border-b border-[#F6E4EC] bg-[#FFF9FB]">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#827780]" />
+                    <input
+                      type="text"
+                      placeholder="Pesquisar residencial..."
+                      value={residencialSearchTerm}
+                      onChange={(e) => setResidencialSearchTerm(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-[#F6E4EC] rounded-xl text-[#28232A] focus:outline-none focus:border-[#F04491]"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <div className="max-h-60 overflow-y-auto divide-y divide-[#F6E4EC]">
+                  {filteredResidenciaisList.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-[#827780]">
+                      Nenhum residencial encontrado.
+                    </div>
+                  ) : (
+                    filteredResidenciaisList.map((res) => {
+                      const isCurrent = res.slug === selectedResidencial
+                      return (
+                        <button
+                          key={res.slug}
+                          type="button"
+                          onClick={() => {
+                            setSelectedResidencial(res.slug)
+                            setActiveIndicatorFilter('all')
+                            setIsSelectorOpen(false)
+                            setResidencialSearchTerm('')
+                          }}
+                          className={`w-full p-3 text-left transition-colors flex items-center justify-between gap-2 cursor-pointer ${
+                            isCurrent
+                              ? 'bg-[#FCE5ED]/60 text-[#F04491] font-bold'
+                              : 'hover:bg-[#FFF9FB] text-[#28232A]'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <span className="text-xs font-bold block truncate">{res.name}</span>
+                            <span className="text-[10px] text-[#827780] block truncate mt-0.5">
+                              {res.address}
+                            </span>
+                          </div>
+                          {isCurrent && <Check size={16} className="text-[#F04491] shrink-0" />}
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Botão Destacado: Cadastrar Novo Residencial */}
           <button
+            type="button"
             onClick={() => {
-              setSelectedResidencial('paupina')
-              setActiveIndicatorFilter('all')
+              setEditingResidencialItem(null)
+              setIsResidencialModalOpen(true)
             }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-              selectedResidencial === 'paupina'
-                ? 'bg-[#F04491] text-white shadow-sm'
-                : 'text-[#827780] hover:text-[#28232A]'
-            }`}
+            className="px-4 py-2.5 rounded-2xl bg-[#F04491] hover:bg-[#DE3380] text-white text-xs md:text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer shrink-0 min-h-[44px]"
           >
-            <span>Residencial Paupina</span>
-          </button>
-          <button
-            onClick={() => {
-              setSelectedResidencial('joaquim_machado')
-              setActiveIndicatorFilter('all')
-            }}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 cursor-pointer ${
-              selectedResidencial === 'joaquim_machado'
-                ? 'bg-[#F04491] text-white shadow-sm'
-                : 'text-[#827780] hover:text-[#28232A]'
-            }`}
-          >
-            <span>Residencial Joaquim Machado</span>
+            <Plus size={16} className="stroke-[3]" />
+            <span>+ Cadastrar novo residencial</span>
           </button>
         </div>
       </div>
+
+      {/* FICHA ESPECIFICAÇÃO DETALHADA DO RESIDENCIAL SELECIONADO */}
+      {selectedResidencialItem && (
+        <div className="bg-gradient-to-r from-white via-[#FFF9FB] to-white rounded-3xl p-6 border border-[#F6E4EC] shadow-[0_2px_12px_rgba(240,68,145,0.04)] space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#F6E4EC]">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#FCE5ED] text-[#F04491] flex items-center justify-center font-bold shadow-xs shrink-0">
+                <Building2 size={24} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg md:text-xl font-black text-[#28232A]">
+                    {selectedResidencialItem.name}
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#FFF9FB] border border-[#F6E4EC] text-[#F04491]">
+                    {selectedResidencialItem.slug}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-[#827780] mt-1">
+                  <MapPin size={13} className="text-[#F04491] shrink-0" />
+                  <span>{selectedResidencialItem.address}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingResidencialItem(selectedResidencialItem)
+                  setIsResidencialModalOpen(true)
+                }}
+                className="px-3 py-1.5 rounded-xl border border-[#F6E4EC] bg-white hover:bg-[#FCE5ED]/50 text-[#827780] hover:text-[#F04491] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Editar especificações do residencial"
+              >
+                <Edit2 size={13} />
+                <span>Editar Ficha</span>
+              </button>
+            </div>
+          </div>
+
+          {/* GRID COM OS 3 ATRIBUTOS QUANTITATIVOS OBRIGATÓRIOS */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3.5 bg-white rounded-2xl border border-[#F6E4EC] flex items-center gap-3 shadow-2xs">
+              <div className="w-10 h-10 rounded-xl bg-[#EDF2FF] text-[#4B7BFF] flex items-center justify-center shrink-0">
+                <Layers size={18} />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-[#827780] uppercase tracking-wider block">
+                  Quantidade de Blocos
+                </span>
+                <span className="text-base font-black text-[#28232A]">
+                  {selectedResidencialItem.blocks_count} blocos
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-white rounded-2xl border border-[#F6E4EC] flex items-center gap-3 shadow-2xs">
+              <div className="w-10 h-10 rounded-xl bg-[#FEF8EC] text-[#E59B28] flex items-center justify-center shrink-0">
+                <Building size={18} />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-[#827780] uppercase tracking-wider block">
+                  Quantidade de Andares
+                </span>
+                <span className="text-base font-black text-[#28232A]">
+                  {selectedResidencialItem.floors_count} andares
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3.5 bg-white rounded-2xl border border-[#F6E4EC] flex items-center gap-3 shadow-2xs">
+              <div className="w-10 h-10 rounded-xl bg-[#EBF7F1] text-[#36A879] flex items-center justify-center shrink-0">
+                <Accessibility size={18} />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-[#827780] uppercase tracking-wider block">
+                  Apartamentos PCD
+                </span>
+                <span className="text-base font-black text-[#28232A]">
+                  {selectedResidencialItem.pcd_adapted_units_count} adaptados
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {selectedResidencialItem.description && (
+            <p className="text-xs text-[#827780] leading-relaxed pt-1">
+              <span className="font-bold text-[#28232A]">Nota: </span>
+              {selectedResidencialItem.description}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* 8 INDICADORES OBRIGATÓRIOS DO RESIDENCIAL */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
@@ -781,7 +984,7 @@ export const ResidenciaisView: React.FC<ResidenciaisViewProps> = ({ onBackToDash
           onSave={handleSaveDossier}
           initialData={editingDossier}
           batches={batches}
-          residencialName={selectedResidencial === 'paupina' ? 'Residencial Paupina' : 'Residencial Joaquim Machado'}
+          residencialName={selectedResidencialItem ? selectedResidencialItem.name : 'Residencial'}
         />
       )}
 
@@ -795,9 +998,27 @@ export const ResidenciaisView: React.FC<ResidenciaisViewProps> = ({ onBackToDash
           }}
           onSave={handleSaveBatch}
           initialData={editingBatch}
-          residencialName={selectedResidencial === 'paupina' ? 'Residencial Paupina' : 'Residencial Joaquim Machado'}
+          residencialName={selectedResidencialItem ? selectedResidencialItem.name : 'Residencial'}
         />
       )}
+
+      {/* MODAL: CADASTRAR OU EDITAR RESIDENCIAL */}
+      <ResidencialModal
+        isOpen={isResidencialModalOpen}
+        onClose={() => {
+          setIsResidencialModalOpen(false)
+          setEditingResidencialItem(null)
+        }}
+        editingResidencial={editingResidencialItem}
+        onSaveSuccess={(item) => {
+          setResidenciaisList((prev) => {
+            const exists = prev.some((r) => r.slug === item.slug)
+            return exists ? prev.map((r) => (r.slug === item.slug ? item : r)) : [...prev, item]
+          })
+          setSelectedResidencial(item.slug)
+          showFeedback(`Residencial "${item.name}" salvo e selecionado com sucesso! ✨`)
+        }}
+      />
     </div>
   )
 }
