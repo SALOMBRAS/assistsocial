@@ -313,18 +313,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       {/* 1. TOPO DA AGENDA INTELIGENTE */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {onBackToDashboard && (
-              <button
-                type="button"
-                onClick={onBackToDashboard}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#F6E4EC] text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED]/40 text-xs font-bold transition-all cursor-pointer shadow-xs mr-1"
-                title="Voltar ao Painel Inicial"
-              >
-                <ArrowLeft size={14} />
-                <span>Painel Inicial</span>
-              </button>
-            )}
+          <div className="flex items-center gap-2">
             <span className="p-2 rounded-2xl bg-[#FCE5ED] text-[#F04491]">
               <CalendarIcon size={20} />
             </span>

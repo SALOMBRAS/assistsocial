@@ -112,29 +112,24 @@ describe('Mobile Calendar, Error Boundary & Discreet Navigation', () => {
     })
   })
 
-  describe('Discreet Back Navigation Across Distant Tabs', () => {
-    it('MainDashboard should render a discreet "Voltar ao Painel Inicial" button when currentTab is not dashboard', () => {
+  describe('Single Standard Back Navigation (Mobile Exclusive, No Duplication)', () => {
+    it('MainDashboard should render a single standard "Voltar ao Painel Inicial" button with md:hidden', () => {
       const dashPath = path.resolve('src/pages/MainDashboard.tsx')
       const content = fs.readFileSync(dashPath, 'utf-8')
       assert.ok(content.includes("currentTab !== 'dashboard'"), 'Must check if tab is not dashboard')
       assert.ok(content.includes('Voltar ao Painel Inicial'), 'Must render "Voltar ao Painel Inicial" text')
       assert.ok(content.includes("setCurrentTab('dashboard')"), 'Must switch tab back to dashboard on click')
+      assert.ok(content.includes('md:hidden'), 'Must be hidden on desktop (md:hidden) since desktop has lateral menu')
     })
 
-    it('CalendarView should accept onBackToDashboard and render a discreet back button', () => {
+    it('should not duplicate back button inside CalendarView and ResidenciaisView headers', () => {
       const calPath = path.resolve('src/components/CalendarView.tsx')
-      const content = fs.readFileSync(calPath, 'utf-8')
-      assert.ok(content.includes('onBackToDashboard?: () => void'), 'CalendarViewProps must include onBackToDashboard')
-      assert.ok(content.includes('onBackToDashboard &&'), 'Must render back button if onBackToDashboard is passed')
-      assert.ok(content.includes('Painel Inicial'), 'Must contain Painel Inicial label')
-    })
+      const calContent = fs.readFileSync(calPath, 'utf-8')
+      assert.ok(!calContent.includes('<span>Painel Inicial</span>'), 'CalendarView header must not have duplicate Painel Inicial button')
 
-    it('ResidenciaisView should accept onBackToDashboard and render a discreet back button', () => {
       const resPath = path.resolve('src/components/ResidenciaisView.tsx')
-      const content = fs.readFileSync(resPath, 'utf-8')
-      assert.ok(content.includes('onBackToDashboard?: () => void'), 'ResidenciaisViewProps must include onBackToDashboard')
-      assert.ok(content.includes('onBackToDashboard &&'), 'Must render back button if onBackToDashboard is passed')
-      assert.ok(content.includes('Painel Inicial'), 'Must contain Painel Inicial label')
+      const resContent = fs.readFileSync(resPath, 'utf-8')
+      assert.ok(!resContent.includes('<span>Painel Inicial</span>'), 'ResidenciaisView header must not have duplicate Painel Inicial button')
     })
 
     it('MainDashboard should wrap views with ErrorBoundary for isolated recovery', () => {

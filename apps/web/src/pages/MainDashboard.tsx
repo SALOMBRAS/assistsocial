@@ -366,9 +366,9 @@ export const MainDashboard: React.FC = () => {
         />
 
         <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-12">
-          {/* BOTÃO DISCRETO PARA VOLTAR AO MENU INICIAL EM ABAS DISTANTES */}
+          {/* BOTÃO DISCRETO PADRÃO PARA VOLTAR AO MENU INICIAL (EXCLUSIVO NO MOBILE, POIS NO DESKTOP HÁ MENU LATERAL FIXO) */}
           {currentTab !== 'dashboard' && (
-            <div className="mb-4">
+            <div className="mb-4 md:hidden">
               <button
                 type="button"
                 onClick={() => setCurrentTab('dashboard')}
@@ -533,7 +533,7 @@ export const MainDashboard: React.FC = () => {
           {/* VIEW: RESIDENCIAIS (PAUPINA & JOAQUIM MACHADO) */}
           {currentTab === 'residenciais' && (
             <ErrorBoundary fallbackTitle="Erro ao carregar Área dos Residenciais" onReset={() => setCurrentTab('dashboard')}>
-              <ResidenciaisView onBackToDashboard={() => setCurrentTab('dashboard')} />
+              <ResidenciaisView />
             </ErrorBoundary>
           )}
 
@@ -553,8 +553,7 @@ export const MainDashboard: React.FC = () => {
                 }}
                 onToggleComplete={handleToggleComplete}
                 onReschedule={(activity) => setRescheduleTarget(activity)}
-                onBackToDashboard={() => setCurrentTab('dashboard')}
-              />
+                />
             </ErrorBoundary>
           )}
 

@@ -324,22 +324,9 @@ export const ResidenciaisView: React.FC<ResidenciaisViewProps> = ({ onBackToDash
       {/* CABEÇALHO COM SELEÇÃO DO RESIDENCIAL */}
       <div className="bg-white rounded-3xl p-6 border border-[#F6E4EC] shadow-[0_2px_12px_rgba(240,68,145,0.03)] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            {onBackToDashboard && (
-              <button
-                type="button"
-                onClick={onBackToDashboard}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#F6E4EC] text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED]/40 text-xs font-bold transition-all cursor-pointer shadow-xs mr-1"
-                title="Voltar ao Painel Inicial"
-              >
-                <ArrowLeft size={14} />
-                <span>Painel Inicial</span>
-              </button>
-            )}
-            <div className="flex items-center gap-2 text-[#F04491] text-xs font-bold uppercase tracking-wider">
-              <Building2 size={16} />
-              <span>Gestão Territorial de Habitação de Interesse Social</span>
-            </div>
+          <div className="flex items-center gap-2 text-[#F04491] text-xs font-bold uppercase tracking-wider mb-1">
+            <Building2 size={16} />
+            <span>Gestão Territorial de Habitação de Interesse Social</span>
           </div>
           <h1 className="text-xl md:text-2xl font-black text-[#28232A] tracking-tight">
             Área dos Residenciais
