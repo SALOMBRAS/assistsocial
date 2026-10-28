@@ -26,6 +26,8 @@ import { CaseTimelineView } from '../components/CaseTimelineView'
 import { DocumentsView } from '../components/DocumentsView'
 import { TeamView } from '../components/TeamView'
 import { ResidenciaisView } from '../components/ResidenciaisView'
+import { NotificationsPopover } from '../components/NotificationsPopover'
+import { fetchUserNotifications, subscribeToNotifications } from '../services/notificationService'
 import { ErrorBoundary } from '../components/ErrorBoundary'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabaseClient'
@@ -38,6 +40,25 @@ export const MainDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0)
+
+  const refreshNotificationsCount = async () => {
+    if (!user?.id) return
+    const notifs = await fetchUserNotifications(user.id)
+    setUnreadNotifsCount(notifs.filter((n) => !n.is_read).length)
+  }
+
+  useEffect(() => {
+    if (!user?.id) return
+    refreshNotificationsCount()
+    const unsubscribe = subscribeToNotifications(user.id, () => {
+      refreshNotificationsCount()
+    })
+    return () => {
+      unsubscribe()
+    }
+  }, [user?.id])
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
 
   // Modals state
@@ -363,6 +384,9 @@ export const MainDashboard: React.FC = () => {
           onSearchChange={setSearchTerm}
           totalActivitiesCount={activities.length}
           profileName={profileDisplayName}
+          onToggleMobileMenu={() => setIsMobileNavOpen((prev) => !prev)}
+          unreadNotificationsCount={unreadNotifsCount}
+          onToggleNotifications={() => setIsNotificationsOpen((prev) => !prev)}
         />
 
         <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-12">
@@ -665,6 +689,49 @@ export const MainDashboard: React.FC = () => {
           setIsModalOpen(true)
         }}
         onToggleMore={() => setIsMobileNavOpen((prev) => !prev)}
+      />
+
+      {/* POPOVER: NOTIFICAÇÕES E LEMBRETES */}
+      <NotificationsPopover
+        isOpen={isNotificationsOpen}
+        onClose={() => {
+          setIsNotificationsOpen(false)
+          refreshNotificationsCount()
+        }}
+        userId={user?.id || ''}
+        activities={activities.map((a) => ({ id: a.id, title: a.title }))}
+        onOpenActivity={(activityId) => {
+          const found = activities.find((a) => a.id === activityId)
+          if (found) {
+            setEditingActivity(found)
+            setIsModalOpen(true)
+          } else {
+            setCurrentTab('activities')
+          }
+        }}
+        onAcceptShare={async (shareId) => {
+          try {
+            await (supabase.rpc as any)('respond_to_share_invite', {
+              p_share_id: shareId,
+              p_action: 'accept',
+            })
+            showToast('Compartilhamento aceito com sucesso!')
+            loadActivities()
+          } catch (err) {
+            console.error('Erro ao aceitar convite:', err)
+          }
+        }}
+        onRejectShare={async (shareId) => {
+          try {
+            await (supabase.rpc as any)('respond_to_share_invite', {
+              p_share_id: shareId,
+              p_action: 'reject',
+            })
+            showToast('Convite recusado.')
+          } catch (err) {
+            console.error('Erro ao recusar convite:', err)
+          }
+        }}
       />
 
       {/* Activity Create / Edit Modal */}

@@ -8,6 +8,8 @@ interface HeaderProps {
   totalActivitiesCount: number
   profileName?: string
   onToggleMobileMenu?: () => void
+  unreadNotificationsCount?: number
+  onToggleNotifications?: () => void
 }
 
 const getFormattedDate = () => {
@@ -26,6 +28,8 @@ export const Header: React.FC<HeaderProps> = ({
   totalActivitiesCount,
   profileName,
   onToggleMobileMenu,
+  unreadNotificationsCount = 0,
+  onToggleNotifications,
 }) => {
   const formattedDate = useMemo(() => getFormattedDate(), [])
 
@@ -79,11 +83,18 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Quick Notifications Button */}
           <button
-            title="Notificações"
+            type="button"
+            onClick={onToggleNotifications}
+            title={unreadNotificationsCount > 0 ? `${unreadNotificationsCount} notificações não lidas` : 'Central de Notificações e Lembretes'}
+            aria-label="Abrir central de notificações e lembretes"
             className="p-2 md:p-2.5 rounded-2xl border border-[#F6E4EC] text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED]/60 transition-all cursor-pointer relative"
           >
             <Bell size={18} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#F04491]"></span>
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#F04491] text-white text-[10px] font-black flex items-center justify-center border-2 border-white shadow-xs animate-in zoom-in duration-150">
+                {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+              </span>
+            )}
           </button>
 
           {/* Main Action Button */}
