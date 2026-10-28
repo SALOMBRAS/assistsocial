@@ -539,9 +539,135 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
-      }
+      },
+      residential_simple_metrics: {
+        Row: {
+          id: string
+          residencial_id: string
+          residencial_slug: string
+          total_capacity: number | null
+          occupied_units: number | null
+          available_units: number | null
+          pcd_adapted_units: number | null
+          pending_documents_count: number | null
+          regular_documents_count: number | null
+          dossiers_no_pending_count: number | null
+          dossiers_with_pending_count: number | null
+          dossiers_resubmitted_search_count: number | null
+          no_show_count: number | null
+          dossiers_excluded_count: number | null
+          dossiers_compliant_count: number | null
+          dossiers_non_compliant_count: number | null
+          dossiers_batched_count: number | null
+          proxies_needed_count: number | null
+          notes: string | null
+          custom_metrics: Record<string, unknown>
+          last_updated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          residencial_id: string
+          residencial_slug: string
+          total_capacity?: number | null
+          occupied_units?: number | null
+          available_units?: number | null
+          pcd_adapted_units?: number | null
+          pending_documents_count?: number | null
+          regular_documents_count?: number | null
+          dossiers_no_pending_count?: number | null
+          dossiers_with_pending_count?: number | null
+          dossiers_resubmitted_search_count?: number | null
+          no_show_count?: number | null
+          dossiers_excluded_count?: number | null
+          dossiers_compliant_count?: number | null
+          dossiers_non_compliant_count?: number | null
+          dossiers_batched_count?: number | null
+          proxies_needed_count?: number | null
+          notes?: string | null
+          custom_metrics?: Record<string, unknown>
+          last_updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          residencial_id?: string
+          residencial_slug?: string
+          total_capacity?: number | null
+          occupied_units?: number | null
+          available_units?: number | null
+          pcd_adapted_units?: number | null
+          pending_documents_count?: number | null
+          regular_documents_count?: number | null
+          dossiers_no_pending_count?: number | null
+          dossiers_with_pending_count?: number | null
+          dossiers_resubmitted_search_count?: number | null
+          no_show_count?: number | null
+          dossiers_excluded_count?: number | null
+          dossiers_compliant_count?: number | null
+          dossiers_non_compliant_count?: number | null
+          dossiers_batched_count?: number | null
+          proxies_needed_count?: number | null
+          notes?: string | null
+          custom_metrics?: Record<string, unknown>
+          last_updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      },
+      residential_metrics_history: {
+        Row: {
+          id: string
+          residencial_id: string
+          residencial_slug: string
+          metrics_snapshot: Record<string, unknown>
+          updated_by: string | null
+          reason: string | null
+          recorded_at: string
+        }
+        Insert: {
+          id?: string
+          residencial_id: string
+          residencial_slug: string
+          metrics_snapshot: Record<string, unknown>
+          updated_by?: string | null
+          reason?: string | null
+          recorded_at?: string
+        }
+        Update: {
+          id?: string
+          residencial_id?: string
+          residencial_slug?: string
+          metrics_snapshot?: Record<string, unknown>
+          updated_by?: string | null
+          reason?: string | null
+          recorded_at?: string
+        }
+      },
     },
     Functions: {
+      get_residential_simple_metrics: {
+        Args: {
+          p_residencial_slug: string
+        }
+        Returns: Record<string, unknown>
+      },
+      upsert_residential_simple_metrics: {
+        Args: {
+          p_residencial_slug: string
+          p_metrics: Record<string, unknown>
+        }
+        Returns: Record<string, unknown>
+      },
+      get_residential_metrics_history: {
+        Args: {
+          p_residencial_slug: string
+          p_limit?: number
+        }
+        Returns: Record<string, unknown>[]
+      },
       mark_first_password_changed: {
         Args: Record<string, never>
         Returns: {
@@ -647,3 +773,8 @@ export type NotificationItem = Database['public']['Tables']['notifications']['Ro
 export type ReminderItem = Database['public']['Tables']['reminders']['Row']
 export type ResidencialItem = Database['public']['Tables']['residenciais']['Row']
 
+
+export type ResidentialSimpleMetricsRow = Database['public']['Tables']['residential_simple_metrics']['Row']
+export type ResidentialSimpleMetricsInsert = Database['public']['Tables']['residential_simple_metrics']['Insert']
+export type ResidentialSimpleMetricsUpdate = Database['public']['Tables']['residential_simple_metrics']['Update']
+export type ResidentialMetricsHistoryRow = Database['public']['Tables']['residential_metrics_history']['Row']

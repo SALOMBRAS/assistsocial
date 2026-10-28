@@ -601,7 +601,7 @@ INSERT INTO public.family_members (
   id, family_id, full_name, nis, cpf, relationship, birth_date, phone, notes
 ) VALUES 
 (
-  'm0000001-0000-0000-0000-000000000001',
+  'a0000001-0000-0000-0000-000000000001',
   'f0000001-0000-0000-0000-000000000001',
   'Maria da Silva Santos',
   '165.892.410-02',
@@ -612,8 +612,8 @@ INSERT INTO public.family_members (
   'Titular do Cadastro Único e do dossiê habitacional da unidade.'
 ),
 (
-  'm0000001-0000-0000-0000-000000000002',
-  'f0000001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
+  'f0000001-0000-0000-0000-000000000001',
   'Lucas da Silva Santos',
   '165.892.410-15',
   '091.244.783-05',
@@ -623,8 +623,8 @@ INSERT INTO public.family_members (
   '12 anos. Diagnóstico de Transtorno do Espectro Autista (TEA). Encaminhado para laudo médico no CAPS Infantil e processo do BPC.'
 ),
 (
-  'm0000001-0000-0000-0000-000000000003',
-  'f0000001-0000-0000-0000-000000000003',
+  'a0000001-0000-0000-0000-000000000003',
+  'f0000001-0000-0000-0000-000000000001',
   'Ana Clara da Silva Santos',
   '165.892.410-28',
   null,
@@ -674,7 +674,7 @@ INSERT INTO public.family_timeline_events (
 (
   gen_random_uuid(),
   'f0000001-0000-0000-0000-000000000001',
-  'm0000001-0000-0000-0000-000000000001',
+  'a0000001-0000-0000-0000-000000000001',
   'cadastro_familiar',
   'Abertura de Prontuário e Cadastro Familiar',
   'Família cadastrada no território do Residencial Paupina após convocação para assinatura de dossiê técnico.',
@@ -700,7 +700,7 @@ INSERT INTO public.family_timeline_events (
 (
   gen_random_uuid(),
   'f0000001-0000-0000-0000-000000000001',
-  'm0000001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
   'encaminhamento_realizado',
   'Encaminhamento Técnico ao CAPS Infantil e Defensoria Pública',
   'Emitido parecer técnico e guia de encaminhamento oficial para agilização do laudo biopsicossocial do dependente Lucas da Silva Santos para requerimento do BPC/LOAS.',
@@ -713,7 +713,7 @@ INSERT INTO public.family_timeline_events (
 (
   gen_random_uuid(),
   'f0000001-0000-0000-0000-000000000001',
-  'm0000001-0000-0000-0000-000000000001',
+  'a0000001-0000-0000-0000-000000000001',
   'dossie_atualizado',
   'Dossiê Habitacional Conforme no Lote 04',
   'Dossiê da família incluído com sucesso no Lote de Envio 04 da Paupina sem nenhuma inconformidade cadastral pendente.',
@@ -726,7 +726,7 @@ INSERT INTO public.family_timeline_events (
 (
   gen_random_uuid(),
   'f0000001-0000-0000-0000-000000000001',
-  'm0000001-0000-0000-0000-000000000001',
+  'a0000001-0000-0000-0000-000000000001',
   'contato_realizado',
   'Contato Telefônico de Acompanhamento Realizado',
   'Dona Maria confirmou recebimento do protocolo de atendimento na Defensoria Pública (DPCE) e agendamento da perícia médica no INSS para o próximo mês.',
@@ -744,7 +744,7 @@ INSERT INTO public.family_pendencies (
 (
   gen_random_uuid(),
   'f0000001-0000-0000-0000-000000000001',
-  'm0000001-0000-0000-0000-000000000002',
+  'a0000001-0000-0000-0000-000000000002',
   'Obtenção do Laudo Médico Pericial Atualizado (TEA)',
   'Aguardando entrega do laudo médico emitido pelo neurologista/psiquiatra infantil para anexar ao requerimento do BPC/LOAS.',
   'saude',
@@ -757,7 +757,7 @@ INSERT INTO public.family_pendencies (
 (
   gen_random_uuid(),
   'f0000001-0000-0000-0000-000000000001',
-  'm0000001-0000-0000-0000-000000000001',
+  'a0000001-0000-0000-0000-000000000001',
   'Atualização Cadastral do NIS no CadÚnico',
   'Necessário atualizar a renda per capita familiar no Cadastro Único após mudança de endereço para a Paupina.',
   'beneficio_social',
@@ -770,7 +770,7 @@ INSERT INTO public.family_pendencies (
 (
   gen_random_uuid(),
   'f0000001-0000-0000-0000-000000000001',
-  'm0000001-0000-0000-0000-000000000001',
+  'a0000001-0000-0000-0000-000000000001',
   'Assinatura da Declaração de Residência do Bloco B',
   'Coleta da assinatura da titular na ata de ocupação regular do apartamento 102.',
   'habitacao',
