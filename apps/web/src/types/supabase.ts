@@ -51,6 +51,7 @@ export interface Database {
           avatar_url: string | null
           role: string
           must_change_password: boolean
+          preferences: Json
           created_at: string
           updated_at: string
         }
@@ -62,6 +63,7 @@ export interface Database {
           avatar_url?: string | null
           role?: string
           must_change_password?: boolean
+          preferences?: Json
           created_at?: string
           updated_at?: string
         }
@@ -73,6 +75,7 @@ export interface Database {
           avatar_url?: string | null
           role?: string
           must_change_password?: boolean
+          preferences?: Json
           created_at?: string
           updated_at?: string
         }
@@ -1024,8 +1027,65 @@ export interface Database {
           expires_at?: string
         }
       },
+      editor_documents: {
+        Row: {
+          id: string
+          owner_id: string
+          title: string
+          category: string
+          template_id: string | null
+          content: Json
+          plain_text: string | null
+          settings: Json
+          is_favorite: boolean
+          last_downloaded_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          owner_id: string
+          title: string
+          category?: string
+          template_id?: string | null
+          content?: Json
+          plain_text?: string | null
+          settings?: Json
+          is_favorite?: boolean
+          last_downloaded_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          owner_id?: string
+          title?: string
+          category?: string
+          template_id?: string | null
+          content?: Json
+          plain_text?: string | null
+          settings?: Json
+          is_favorite?: boolean
+          last_downloaded_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     },
     Functions: {
+      save_editor_document: {
+        Args: {
+          p_id: string | null
+          p_title: string
+          p_category: string
+          p_template_id: string | null
+          p_content: Json
+          p_plain_text: string | null
+          p_settings: Json
+        }
+        Returns: Json
+      },
+
       create_document_job: {
         Args: {
           p_operation_type: string
@@ -1192,6 +1252,12 @@ export interface Database {
           id: string
           is_completed: boolean
         }
+      }
+      update_user_preferences: {
+        Args: {
+          p_preferences: Json
+        }
+        Returns: Json
       }
     }
   }
