@@ -50,32 +50,32 @@ export const StatsCards: React.FC<StatsProps> = ({
   ]
 
   return (
-    <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5 mb-6 md:mb-8">
+    <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-4 gap-2.5 md:gap-3.5 mb-5 md:mb-6">
       {cards.map((card, idx) => (
         <div
           key={idx}
-          className="bg-white p-4 md:p-5 rounded-3xl border border-[#F6E4EC] shadow-[0_2px_12px_rgba(240,68,145,0.03)] hover:shadow-[0_6px_20px_rgba(240,68,145,0.06)] hover:border-[#F58BB5]/50 transition-all group min-w-0 flex flex-col justify-between"
+          className="bg-white p-3.5 md:p-4 rounded-2xl border border-[#F6E4EC] shadow-[0_2px_8px_rgba(240,68,145,0.03)] hover:shadow-[0_4px_16px_rgba(240,68,145,0.06)] hover:border-[#F58BB5]/50 transition-all duration-200 group min-w-0 flex flex-col justify-between"
         >
-          <div className="flex items-start justify-between gap-2 mb-3 min-w-0">
-            <span className="text-xs font-semibold text-[#827780] tracking-wide break-words line-clamp-2">
+          <div className="flex items-start justify-between gap-2 mb-2 min-w-0">
+            <span className="text-[11px] md:text-xs font-bold text-[#827780] tracking-wide break-words line-clamp-2">
               {card.title}
             </span>
             <div
-              className={`w-9 h-9 md:w-10 md:h-10 rounded-2xl ${card.bgIcon} flex items-center justify-center transition-transform group-hover:scale-105 shrink-0`}
+              className={`w-8 h-8 md:w-9 md:h-9 rounded-xl ${card.bgIcon} flex items-center justify-center transition-transform duration-200 group-hover:scale-105 shrink-0`}
             >
               {card.icon}
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl md:text-3xl font-black text-[#28232A] tracking-tight">
+            <span className="text-xl md:text-2xl font-black text-[#28232A] tracking-tight">
               {card.value}
             </span>
-            <span className="text-[11px] text-[#827780] font-medium hidden sm:inline">
+            <span className="text-[10px] md:text-[11px] text-[#827780] font-medium hidden sm:inline">
               {card.label}
             </span>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[10px] md:text-[11px] text-[#36A879] font-bold">
-            <TrendingUp size={12} />
+          <div className="mt-1.5 flex items-center gap-1.5 text-[10px] md:text-[11px] text-[#36A879] font-bold">
+            <TrendingUp size={11} />
             <span>{card.trend}</span>
           </div>
         </div>

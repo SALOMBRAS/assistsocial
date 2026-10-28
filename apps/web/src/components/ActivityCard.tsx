@@ -95,12 +95,12 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 
   return (
     <div
-      className={`bg-white rounded-3xl p-4 md:p-5 border transition-all duration-200 group relative ${
+      className={`bg-white rounded-2xl p-3.5 md:p-4 border transition-all duration-200 group relative ${
         isCompleted
           ? 'border-[#36A879]/30 bg-white/80'
           : isNotCompleted
           ? 'border-[#D93025]/30 bg-white/90'
-          : 'border-[#F6E4EC] shadow-[0_2px_10px_rgba(240,68,145,0.03)] hover:shadow-[0_6px_20px_rgba(240,68,145,0.07)] hover:border-[#F58BB5]/60'
+          : 'border-[#F6E4EC] shadow-[0_2px_8px_rgba(240,68,145,0.02)] hover:shadow-[0_4px_16px_rgba(240,68,145,0.06)] hover:border-[#F58BB5]/60'
       }`}
     >
       <div className="flex items-start justify-between gap-3">

@@ -495,7 +495,7 @@ export const MainDashboard: React.FC = () => {
           onToggleNotifications={() => setIsNotificationsOpen((prev) => !prev)}
         />
 
-        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-12">
+        <main className="flex-1 p-3.5 sm:p-5 md:p-6 max-w-7xl w-full mx-auto pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-10">
           {/* BOTÃO DISCRETO PADRÃO PARA VOLTAR AO MENU INICIAL (EXCLUSIVO NO MOBILE, POIS NO DESKTOP HÁ MENU LATERAL FIXO) */}
           {currentTab !== 'dashboard' && (
             <div className="mb-4 md:hidden">
@@ -522,7 +522,7 @@ export const MainDashboard: React.FC = () => {
               />
 
               {/* QUICK CATEGORY FILTER TABS */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 no-scrollbar">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-4 no-scrollbar">
                 {[
                   { id: 'all', label: 'Todas as Atividades', count: activities.length },
                   { id: 'visita_domiciliar', label: 'Visitas Domiciliares', count: visitasCount },
@@ -535,7 +535,7 @@ export const MainDashboard: React.FC = () => {
                     <button
                       key={tab.id}
                       onClick={() => setCategoryFilter(tab.id)}
-                      className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
                         isSelected
                           ? 'bg-[#F04491] text-white shadow-[0_4px_12px_rgba(240,68,145,0.25)]'
                           : 'bg-white text-[#827780] hover:text-[#28232A] hover:bg-[#FCE5ED]/40 border border-[#F6E4EC]'
@@ -555,7 +555,7 @@ export const MainDashboard: React.FC = () => {
               </div>
 
               {/* MAIN CONTENT GRID */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
                 {/* Left 2 Cols: Activity Feed */}
                 <div className="lg:col-span-2 space-y-4">
                   <div className="flex items-center justify-between">
@@ -577,7 +577,7 @@ export const MainDashboard: React.FC = () => {
                       Carregando atividades...
                     </div>
                   ) : filteredActivities.length === 0 ? (
-                    <div className="bg-white rounded-3xl p-8 border border-[#F6E4EC] text-center shadow-sm">
+                    <div className="bg-white rounded-2xl p-6 border border-[#F6E4EC] text-center shadow-sm">
                       <div className="w-14 h-14 mx-auto rounded-2xl bg-[#FCE5ED] text-[#F04491] flex items-center justify-center mb-3">
                         <CalendarIcon size={26} />
                       </div>
@@ -619,9 +619,9 @@ export const MainDashboard: React.FC = () => {
                 </div>
 
                 {/* Right 1 Col: Side Cards */}
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {/* Daily Focus Card */}
-                  <div className="bg-gradient-to-br from-white to-[#FFF9FB] p-5 rounded-3xl border border-[#F6E4EC] shadow-[0_2px_12px_rgba(240,68,145,0.03)]">
+                  <div className="bg-gradient-to-br from-white to-[#FFF9FB] p-4 rounded-2xl border border-[#F6E4EC] shadow-[0_2px_8px_rgba(240,68,145,0.02)]">
                     <div className="flex items-center gap-2.5 mb-3 text-[#F04491]">
                       <Sparkles size={18} />
                       <h3 className="font-extrabold text-sm text-[#28232A]">Foco do Dia — Assistência</h3>
@@ -630,13 +630,13 @@ export const MainDashboard: React.FC = () => {
                       Acompanhamento integrado com a rede socioassistencial e proteção de dados confidenciais.
                     </p>
                     <div className="space-y-2">
-                      <div className="p-3 rounded-2xl bg-[#FFF9FB] border border-[#F6E4EC] flex items-center justify-between">
+                      <div className="p-2.5 rounded-xl bg-[#FFF9FB] border border-[#F6E4EC] flex items-center justify-between">
                         <span className="text-xs font-bold text-[#28232A]">Atividades Pendentes</span>
                         <span className="text-[10px] font-bold text-[#F04491] bg-[#FCE5ED] px-2 py-0.5 rounded-full">
                           {activities.filter((a) => a.status === 'pending').length} casos
                         </span>
                       </div>
-                      <div className="p-3 rounded-2xl bg-[#FFF9FB] border border-[#F6E4EC] flex items-center justify-between">
+                      <div className="p-2.5 rounded-xl bg-[#FFF9FB] border border-[#F6E4EC] flex items-center justify-between">
                         <span className="text-xs font-bold text-[#28232A]">Concluídas com Sucesso</span>
                         <span className="text-[10px] font-bold text-[#36A879] bg-[#EBF7F1] px-2 py-0.5 rounded-full">
                           {concluidasCount} feitas
@@ -646,7 +646,7 @@ export const MainDashboard: React.FC = () => {
                   </div>
 
                   {/* Security & Confidentiality Badge */}
-                  <div className="p-4 rounded-3xl bg-[#EBF7F1]/80 border border-[#36A879]/20 flex items-start gap-3">
+                  <div className="p-3.5 rounded-2xl bg-[#EBF7F1]/80 border border-[#36A879]/20 flex items-start gap-3">
                     <ShieldCheck size={20} className="text-[#36A879] shrink-0 mt-0.5" />
                     <div>
                       <h4 className="text-xs font-bold text-[#28232A]">Sigilo Profissional e LGPD</h4>
