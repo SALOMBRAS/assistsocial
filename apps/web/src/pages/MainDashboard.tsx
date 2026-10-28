@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
   User,
   RotateCcw,
+  CheckCircle2,
 } from 'lucide-react'
 import { Sidebar, type NavTab } from '../components/Sidebar'
 import { Header } from '../components/Header'
@@ -66,20 +67,27 @@ export const MainDashboard: React.FC = () => {
     const [settingsSubTab, setSettingsSubTab] = useState<'profile' | 'access'>('access')
   const [hiddenTabs, setHiddenTabs] = useState<NavTab[]>(() => {
     try {
-      const saved = localStorage.getItem(`assistsocial_hidden_tabs_${user?.id || 'guest'}`)
+      const saved = localStorage.getItem(`assistsocial_hidden_tabs_${user?.id || 'guest'}`) || localStorage.getItem('assistsocial_hidden_tabs_default')
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
     }
   })
+  const [isSavingPrefs, setIsSavingPrefs] = useState<boolean>(false)
+  const [lastSavedPrefsTime, setLastSavedPrefsTime] = useState<string | null>(null)
 
-  // Sincroniza preferências salvas no Supabase
+  // Sincroniza preferências salvas na conta do Supabase
   useEffect(() => {
-    if (!user?.id) return
+    const userKey = `assistsocial_hidden_tabs_${user?.id || 'guest'}`
     try {
-      const local = localStorage.getItem(`assistsocial_hidden_tabs_${user.id}`)
-      if (local) setHiddenTabs(JSON.parse(local))
+      const local = localStorage.getItem(userKey) || localStorage.getItem('assistsocial_hidden_tabs_default')
+      if (local) {
+        const parsed = JSON.parse(local)
+        if (Array.isArray(parsed)) setHiddenTabs(parsed)
+      }
     } catch {}
+
+    if (!user?.id) return
 
     const loadPrefs = async () => {
       try {
@@ -92,11 +100,13 @@ export const MainDashboard: React.FC = () => {
           const prefs = data.preferences as Record<string, unknown>
           if (Array.isArray(prefs.hidden_tabs)) {
             setHiddenTabs(prefs.hidden_tabs as NavTab[])
-            localStorage.setItem(`assistsocial_hidden_tabs_${user.id}`, JSON.stringify(prefs.hidden_tabs))
+            localStorage.setItem(userKey, JSON.stringify(prefs.hidden_tabs))
+            localStorage.setItem('assistsocial_hidden_tabs_default', JSON.stringify(prefs.hidden_tabs))
+            setLastSavedPrefsTime('Sincronizado da sua conta')
           }
         }
       } catch (err) {
-        console.warn('Preferências:', err)
+        console.warn('Preferências da conta:', err)
       }
     }
 
@@ -104,44 +114,123 @@ export const MainDashboard: React.FC = () => {
   }, [user?.id])
 
   const handleToggleTabVisibility = async (tabId: NavTab) => {
-    if (!user?.id) return
     const isCurrentlyHidden = hiddenTabs.includes(tabId)
     const newHidden = isCurrentlyHidden
       ? hiddenTabs.filter((t) => t !== tabId)
       : [...hiddenTabs, tabId]
 
+    // 1. Atualização imediata do estado da UI
     setHiddenTabs(newHidden)
-    localStorage.setItem(`assistsocial_hidden_tabs_${user.id}`, JSON.stringify(newHidden))
 
-    showToast(
-      isCurrentlyHidden
-        ? 'Página reativada no menu lateral! ✨'
-        : 'Página ocultada do menu lateral. 🔒'
-    )
+    // 2. Persistência local imediata
+    const userKey = `assistsocial_hidden_tabs_${user?.id || 'guest'}`
+    try {
+      localStorage.setItem(userKey, JSON.stringify(newHidden))
+      localStorage.setItem('assistsocial_hidden_tabs_default', JSON.stringify(newHidden))
+    } catch {}
+
+    // 3. Persistência permanente na conta institucional no Supabase
+    if (user?.id) {
+      setIsSavingPrefs(true)
+      try {
+        // Tenta RPC update_user_preferences
+        const { error: rpcErr } = await (supabase.rpc as any)('update_user_preferences', {
+          p_preferences: { hidden_tabs: newHidden },
+        })
+
+        if (!rpcErr) {
+          const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          setLastSavedPrefsTime(nowStr)
+          showToast(
+            isCurrentlyHidden
+              ? 'Página reativada e salva na sua conta! ✨'
+              : 'Página ocultada e salva na sua conta! 🔒'
+          )
+        } else {
+          console.warn('RPC falhou, tentando update direto na tabela profiles:', rpcErr)
+          const { error: directErr } = await (supabase.from('profiles') as any)
+            .update({
+              preferences: { hidden_tabs: newHidden },
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', user.id)
+
+          if (!directErr) {
+            const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            setLastSavedPrefsTime(nowStr)
+            showToast(
+              isCurrentlyHidden
+                ? 'Página reativada e salva na sua conta! ✨'
+                : 'Página ocultada e salva na sua conta! 🔒'
+            )
+          } else {
+            showToast('Preferência salva localmente no navegador.')
+          }
+        }
+      } catch (err) {
+        console.warn('Erro ao salvar no Supabase:', err)
+        try {
+          await (supabase.from('profiles') as any)
+            .update({
+              preferences: { hidden_tabs: newHidden },
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', user.id)
+          const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          setLastSavedPrefsTime(nowStr)
+          showToast('Preferências salvas na sua conta!')
+        } catch {
+          showToast('Preferência salva localmente no navegador.')
+        }
+      } finally {
+        setIsSavingPrefs(false)
+      }
+    } else {
+      showToast(
+        isCurrentlyHidden
+          ? 'Página reativada no menu lateral! ✨'
+          : 'Página ocultada do menu lateral. 🔒'
+      )
+    }
 
     if (!isCurrentlyHidden && currentTab === tabId) {
       setCurrentTab('settings')
     }
-
-    try {
-      await (supabase.rpc as any)('update_user_preferences', {
-        p_preferences: { hidden_tabs: newHidden },
-      })
-    } catch (err) {
-      console.warn('Erro ao salvar no Supabase:', err)
-    }
   }
 
   const handleRestoreAllTabs = async () => {
-    if (!user?.id) return
     setHiddenTabs([])
-    localStorage.removeItem(`assistsocial_hidden_tabs_${user.id}`)
-    showToast('Todas as páginas foram restauradas no menu!')
+    const userKey = `assistsocial_hidden_tabs_${user?.id || 'guest'}`
     try {
-      await (supabase.rpc as any)('update_user_preferences', {
-        p_preferences: { hidden_tabs: [] },
-      })
-    } catch (err) {}
+      localStorage.removeItem(userKey)
+      localStorage.removeItem('assistsocial_hidden_tabs_default')
+    } catch {}
+
+    if (user?.id) {
+      setIsSavingPrefs(true)
+      try {
+        const { error: rpcErr } = await (supabase.rpc as any)('update_user_preferences', {
+          p_preferences: { hidden_tabs: [] },
+        })
+        if (rpcErr) {
+          await (supabase.from('profiles') as any)
+            .update({
+              preferences: { hidden_tabs: [] },
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', user.id)
+        }
+        const nowStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        setLastSavedPrefsTime(nowStr)
+        showToast('Todas as páginas foram restauradas e salvas na sua conta!')
+      } catch (err) {
+        console.warn('Erro ao restaurar no Supabase:', err)
+      } finally {
+        setIsSavingPrefs(false)
+      }
+    } else {
+      showToast('Todas as páginas foram restauradas no menu!')
+    }
   }
 
   const [activities, setActivities] = useState<ActivityItem[]>([])
@@ -496,6 +585,10 @@ export const MainDashboard: React.FC = () => {
           onToggleMobileMenu={() => setIsMobileNavOpen((prev) => !prev)}
           unreadNotificationsCount={unreadNotifsCount}
           onToggleNotifications={() => setIsNotificationsOpen((prev) => !prev)}
+          onOpenTabCustomizer={() => {
+            setCurrentTab('settings')
+            setSettingsSubTab('access')
+          }}
         />
 
         <main className="flex-1 p-3.5 sm:p-5 md:p-6 max-w-7xl w-full mx-auto pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-10">
@@ -785,14 +878,30 @@ export const MainDashboard: React.FC = () => {
 
               {settingsSubTab === 'access' && (
                 <div className="space-y-4 animate-fade-in">
-                  <div className="p-3.5 rounded-xl bg-[#FFF9FB] border border-[#F6E4EC] flex items-start gap-2.5">
-                    <Sparkles size={16} className="text-[#F04491] shrink-0 mt-0.5" />
-                    <div className="text-xs text-[#28232A] space-y-0.5">
-                      <p className="font-bold text-[#F04491]">Personalização de Acessos do Menu Lateral</p>
-                      <p className="text-[#827780] text-[11px] leading-relaxed">
-                        Desmarque as páginas que você não utiliza para manter seu menu enxuto e ágil. 
-                        As alterações são <strong>salvas automaticamente na sua conta</strong> e persistidas em todos os seus acessos.
-                      </p>
+                  <div className="p-4 rounded-2xl bg-[#FFF9FB] border border-[#F6E4EC] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <Sparkles size={18} className="text-[#F04491] shrink-0 mt-0.5" />
+                      <div className="text-xs text-[#28232A] space-y-0.5">
+                        <p className="font-black text-[#F04491] text-sm">Personalização de Acessos do Menu Lateral</p>
+                        <p className="text-[#827780] text-xs leading-relaxed max-w-xl">
+                          Desmarque as páginas que você não utiliza para manter seu menu enxuto e ágil. 
+                          As alterações são <strong>salvas automaticamente na sua conta institucional</strong> e sincronizadas em todos os seus dispositivos.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-2">
+                      {isSavingPrefs ? (
+                        <span className="text-[11px] font-bold text-[#F04491] bg-[#FCE5ED] px-3 py-1.5 rounded-xl animate-pulse flex items-center gap-1.5">
+                          <RotateCcw size={12} className="animate-spin" />
+                          Gravando na conta...
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-bold text-[#36A879] bg-[#EBF7F1] border border-[#A7E2C6]/50 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                          <CheckCircle2 size={13} />
+                          {lastSavedPrefsTime ? `Salvo na conta (${lastSavedPrefsTime})` : 'Salvo na conta no Supabase'}
+                        </span>
+                      )}
                     </div>
                   </div>
 

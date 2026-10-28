@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Plus, Search, Bell, CheckCircle2, Menu } from 'lucide-react'
+import { Plus, Search, Bell, CheckCircle2, Menu, SlidersHorizontal } from 'lucide-react'
 
 interface HeaderProps {
   onOpenNewActivity: () => void
@@ -10,6 +10,7 @@ interface HeaderProps {
   onToggleMobileMenu?: () => void
   unreadNotificationsCount?: number
   onToggleNotifications?: () => void
+  onOpenTabCustomizer?: () => void
 }
 
 const getFormattedDate = () => {
@@ -30,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileMenu,
   unreadNotificationsCount = 0,
   onToggleNotifications,
+  onOpenTabCustomizer,
 }) => {
   const formattedDate = useMemo(() => getFormattedDate(), [])
 
@@ -80,6 +82,19 @@ export const Header: React.FC<HeaderProps> = ({
               className="w-full pl-8.5 pr-3.5 py-1.5 text-xs bg-[#FFF9FB] border border-[#F6E4EC] rounded-xl text-[#28232A] placeholder:text-[#827780]/70 focus:outline-none focus:ring-2 focus:ring-[#F04491]/30 focus:border-[#F04491] transition-all"
             />
           </div>
+
+                    {/* Quick Tab Customizer / Personalizar Abas Button */}
+          {onOpenTabCustomizer && (
+            <button
+              type="button"
+              onClick={onOpenTabCustomizer}
+              title="Personalizar Abas do Menu (Salvo na Conta)"
+              aria-label="Personalizar abas do menu"
+              className="p-1.5 md:p-2 rounded-xl border border-[#F6E4EC] text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED]/60 transition-all cursor-pointer relative"
+            >
+              <SlidersHorizontal size={17} />
+            </button>
+          )}
 
           {/* Quick Notifications Button */}
           <button

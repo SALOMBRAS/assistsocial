@@ -78,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'reports', label: 'Relatórios', icon: <FileSpreadsheet size={20} /> },
     { id: 'services', label: 'Diretório de Serviços', icon: <Building2 size={20} /> },
     { id: 'team', label: 'Compartilhamentos', icon: <Users size={20} /> },
-    { id: 'settings', label: 'Configurações', icon: <Settings size={20} /> },
+    { id: 'settings', label: 'Configurações', icon: <Settings size={20} />, badge: hiddenTabs.length > 0 ? `${hiddenTabs.length} ocultas` : undefined },
   ]
 
   // Legacy fallback support for backward compatibility:
