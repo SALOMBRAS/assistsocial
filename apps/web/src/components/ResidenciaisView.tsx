@@ -495,7 +495,7 @@ export const ResidenciaisView: React.FC<ResidenciaisViewProps> = ({ onBackToDash
             className="px-4 py-2.5 rounded-2xl bg-[#F04491] hover:bg-[#DE3380] text-white text-xs md:text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer shrink-0 min-h-[44px]"
           >
             <Plus size={16} className="stroke-[3]" />
-            <span>+ Cadastrar novo residencial</span>
+            <span>Cadastrar novo residencial</span>
           </button>
         </div>
       </div>
