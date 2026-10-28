@@ -1086,9 +1086,20 @@ const DocumentEditorCanvas: React.FC<DocumentEditorCanvasProps> = ({
             ))}
           </div>
 
+          {/* RODAPÉ INSTITUCIONAL (FOLHA TIMBRADA OFICIAL) */}
+          {doc.settings.includeLetterhead && doc.settings.useOfficialLetterheadImage !== false && (
+            <div className="mt-8 pt-4 select-none">
+              <img
+                src={OFFICIAL_FOOTER_DATA_URL}
+                alt="Papel Timbrado Oficial — Rodapé Institucional"
+                className="w-full max-h-16 sm:max-h-20 object-contain mx-auto"
+              />
+            </div>
+          )}
+
           {/* RODAPÉ COM NUMERAÇÃO DE PÁGINA */}
           {doc.settings.includePageNumbers && (
-            <div className="border-t border-gray-200 pt-3 mt-8 flex items-center justify-between text-[11px] text-gray-400 select-none">
+            <div className="border-t border-gray-200 pt-3 mt-4 flex items-center justify-between text-[11px] text-gray-400 select-none">
               <span>AssistSocial — Sistema de Gestão Socioassistencial</span>
               <span>Página 1 de 1</span>
             </div>
