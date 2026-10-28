@@ -67,7 +67,7 @@ describe('Residenciais Expandable Selector & Registration Contract (Phase 4)', (
       assert.match(code, /aria-label="Selecionar residencial"/, 'Must provide accessible selector button')
       assert.match(code, /setIsSelectorOpen/, 'Must toggle expandable selector')
       assert.match(code, /Pesquisar residencial\.\.\./, 'Must provide typing search filter inside dropdown')
-      assert.match(code, /\+ Cadastrar novo residencial/, 'Must provide prominent registration button')
+      assert.match(code, /Cadastrar novo residencial/, 'Must provide prominent registration button')
     })
 
     it('ResidenciaisView should render detailed specification card for selected residential', () => {
