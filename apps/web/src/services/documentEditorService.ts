@@ -20,8 +20,14 @@ import {
   NumberFormat,
   Header,
   Footer,
+  ImageRun,
 } from 'docx'
 import { supabase } from '../lib/supabaseClient'
+import {
+  OFFICIAL_HEADER_BASE64,
+  OFFICIAL_FOOTER_BASE64,
+  OFFICIAL_LETTERHEAD_CONFIG,
+} from './letterheadAssets'
 
 export interface DocumentBlock {
   id: string
@@ -41,6 +47,7 @@ export interface LetterheadSettings {
   fontSize: number
   lineSpacing: number
   includeLetterhead: boolean
+  useOfficialLetterheadImage?: boolean
   institutionName: string
   institutionUnit: string
   institutionAddress: string
@@ -91,15 +98,16 @@ export const DEFAULT_LETTERHEAD_SETTINGS: LetterheadSettings = {
   fontSize: 12,
   lineSpacing: 1.15,
   includeLetterhead: true,
-  institutionName: 'PREFEITURA MUNICIPAL — SECRETARIA DE PROTEÇÃO SOCIAL',
-  institutionUnit: 'CENTRO DE REFERÊNCIA DE ASSISTÊNCIA SOCIAL (CRAS)',
-  institutionAddress: 'Rua das Flores, 420 — Bairro Central — CEP: 60000-000',
-  institutionPhone: '(85) 3101-0000',
-  institutionEmail: 'cras.central@assistsocial.ce.gov.br',
+  useOfficialLetterheadImage: true,
+  institutionName: 'PREFEITURA MUNICIPAL DE FORTALEZA — HABITAFOR',
+  institutionUnit: 'COORDENADORIA DE PROGRAMAS SOCIAIS (COPS)',
+  institutionAddress: 'Secretaria Municipal do Desenvolvimento Habitacional de Fortaleza',
+  institutionPhone: '(85) 3452-9366',
+  institutionEmail: 'cops.social@fortaleza.ce.gov.br',
   includeSignature: true,
   signerName: 'Janaína Lima',
   signerRole: 'Assistente Social',
-  signerRegistration: 'CRESS/CE nº 12345 — 3ª Região',
+  signerRegistration: 'CRESS 3ª Região Nº 17999',
   includePageNumbers: true,
   cityDateLine: 'Fortaleza - CE, ' + new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }),
   margins: { top: 25, bottom: 25, left: 30, right: 20 },
@@ -169,22 +177,53 @@ export const OFFICIAL_TEMPLATES: DocumentTemplate[] = [
   },
   {
     id: 'visita_domiciliar',
-    title: 'Relatório de Visita Domiciliar',
+    title: 'Relatório de Visita Técnica e Levantamento Territorial',
     category: 'relatorios',
     categoryLabel: 'Relatórios',
-    badge: 'Território',
-    description: 'Registro de observação direta no domicílio da família, documentando infraestrutura, habitabilidade e convivência.',
+    badge: 'Oficial PMF / SUAS',
+    description: 'Modelo base oficial baseado no Relatório de Visita Técnica e Levantamento Territorial (Teleceará / Habitafor / SUAS). Inclui caracterização da comunidade, percurso territorial, levantamento de uso e ocupação de imóveis com tabelas sistematizadas e encaminhamentos.',
     defaultSettings: { ...DEFAULT_LETTERHEAD_SETTINGS },
     defaultBlocks: [
-      { id: 'b1', type: 'heading1', text: 'RELATÓRIO DE VISITA DOMICILIAR', align: 'center', bold: true },
-      { id: 'b2', type: 'paragraph', text: 'Data da Visita: [DD/MM/AAAA] às [HH:mm]\nProfissional Responsável: [Nome do Assistente Social]\nEndereço Visitado: [Rua, Número, Complemento, Bairro]\nPessoas Presentes no Momento: [Nomes dos presentes]', align: 'left' },
-      { id: 'b3', type: 'heading2', text: '1. CONDIÇÕES DO IMÓVEL E INFRAESTRUTURA', align: 'left', bold: true },
-      { id: 'b4', type: 'paragraph', text: 'Imóvel em alvenaria com [X] cômodos. Iluminação e ventilação [adequadas / restritas]. Possui abastecimento de água tratada e rede de energia elétrica regularizada.', align: 'justify' },
-      { id: 'b5', type: 'heading2', text: '2. DEMANDAS IDENTIFICADAS', align: 'left', bold: true },
-      { id: 'b6', type: 'bullet', text: 'Atualização cadastral do CadÚnico / Folha Resumo;', align: 'left' },
-      { id: 'b7', type: 'bullet', text: 'Encaminhamento para laudo médico pericial no CAPS Infantil;', align: 'left' },
-      { id: 'b8', type: 'bullet', text: 'Inclusão em oficinas de convivência do Serviço SCFV.', align: 'left' },
-      { id: 'b9', type: 'signature', text: 'Assinatura Profissional', align: 'center' },
+      { id: 'b1', type: 'heading1', text: 'COORDENADORIA DE PROGRAMAS SOCIAIS', align: 'center', bold: true },
+      { id: 'b2', type: 'heading1', text: 'VISITA TÉCNICA – RELATÓRIO TÉCNICO SOCIAL', align: 'center', bold: true },
+      { id: 'b3', type: 'paragraph', text: 'Nos dias [Data da Visita], a equipe técnica da Coordenadoria de Programas Sociais (COPS) da HABITAFOR, composta pela coordenação [Nome do Coordenador(a)], pelas assistentes sociais [Nomes das Assistentes Sociais], contando ainda com apoio de [Apoio Administrativo], realizou visita técnica à comunidade [Nome da Comunidade / Território], no município de Fortaleza/CE. A atividade ocorreu com o objetivo de atualizar o levantamento social e territorial anteriormente realizado na área.', align: 'justify' },
+      { id: 'b4', type: 'heading2', text: '1. RECONHECIMENTO INICIAL E PERCURSO TERRITORIAL', align: 'left', bold: true },
+      { id: 'b5', type: 'paragraph', text: 'A equipe técnica realizou o reconhecimento inicial da área, sendo acompanhada por lideranças locais e representantes comunitários, que apresentaram à equipe técnica a dinâmica local e conduziram o percurso territorial, fornecendo informações acerca da organização comunitária, ocupação dos imóveis, infraestrutura básica e principais características do território.', align: 'justify' },
+      { id: 'b6', type: 'heading2', text: '2. DINÂMICA COMUNITÁRIA E VÍNCULOS SOCIAIS', align: 'left', bold: true },
+      { id: 'b7', type: 'paragraph', text: 'Durante o percurso realizado, foi possível observar que a comunidade permanece fortemente vinculada às suas atividades produtivas e comunitárias tradicionais, constituindo espaço de moradia, trabalho e manutenção de vínculos históricos e afetivos das famílias residentes. Identificou-se que grande parte dos moradores reside na área há longos períodos, havendo consolidação de laços de vizinhança e pertencimento territorial.', align: 'justify' },
+      { id: 'b8', type: 'heading2', text: '3. LEVANTAMENTO TERRITORIAL E UTILIZAÇÃO DOS IMÓVEIS', align: 'left', bold: true },
+      { id: 'b9', type: 'paragraph', text: 'A visita técnica ocorreu por meio de percurso territorial, observação direta dos imóveis e diálogo com moradores da comunidade, possibilitando a atualização das informações referentes à utilização das unidades, situação de ocupação e características territoriais da área.', align: 'justify' },
+      {
+        id: 'b10',
+        type: 'table',
+        text: 'Tabela 1 — Utilizações dos Imóveis Identificados',
+        tableData: [
+          ['SITUAÇÃO IDENTIFICADA', 'QUANTIDADE', 'OBSERVAÇÕES'],
+          ['IMÓVEIS DESTINADOS À ATIVIDADE PRODUTIVA / PESCA', '24', 'Apoio à atividade produtiva e guarda de materiais'],
+          ['IMÓVEIS DESTINADOS À MORADIA', '24', 'Uso exclusivamente residencial'],
+          ['IMÓVEIS DE USO MISTO', '17', 'Moradia e atividades produtivas integradas'],
+          ['NÃO IDENTIFICADOS / DESOCUPADOS', '16', 'Sem identificação conclusiva de uso durante a visita'],
+          ['OUTROS', '8', 'Estruturas de apoio e embarcações'],
+          ['IMÓVEIS DESTINADOS AO COMÉRCIO', '4', 'Pequenos comércios locais e oficinas'],
+          ['TOTAL DE UNIDADES IDENTIFICADAS', '93', 'Levantamento territorial atualizado']
+        ]
+      },
+      { id: 'b11', type: 'heading2', text: '4. SITUAÇÃO DE OCUPAÇÃO E PROPRIEDADE DOS IMÓVEIS', align: 'left', bold: true },
+      {
+        id: 'b12',
+        type: 'table',
+        text: 'Tabela 2 — Situação de Ocupação e Propriedade',
+        tableData: [
+          ['PROPRIEDADE DO IMÓVEL', 'QUANTIDADE', 'OBSERVAÇÕES'],
+          ['PRÓPRIO', '30', 'Informações prestadas pelos moradores do território'],
+          ['ALUGADO', '24', 'Unidades destinadas à locação'],
+          ['NÃO IDENTIFICADO', '39', 'Unidades sem informações conclusivas no momento da visita'],
+          ['TOTAL DE UNIDADES', '93', 'Levantamento territorial atualizado']
+        ]
+      },
+      { id: 'b13', type: 'heading2', text: '5. CONSIDERAÇÕES FINAIS E ENCAMINHAMENTOS', align: 'left', bold: true },
+      { id: 'b14', type: 'paragraph', text: 'Ante o exposto, segue o presente relatório técnico social com a finalidade de subsidiar os encaminhamentos socioassistenciais e intersetoriais necessários junto à rede de proteção social e aos órgãos competentes.', align: 'justify' },
+      { id: 'b15', type: 'signature', text: 'Assinatura Profissional', align: 'center' },
     ],
   },
   {
@@ -373,77 +412,117 @@ export async function generateDocxBlob(doc: EditorDocument): Promise<Blob> {
   const baseFontSizePt = settings.fontSize || 12
   const baseFontSizeHalfPoints = baseFontSizePt * 2 // docx usa meio-ponto (half-points)
 
-  // 1. Cabeçalho Institucional (Folha Timbrada)
+  // 1. Cabeçalho Institucional (Folha Timbrada Oficial — Relatório de Visita / SUAS)
   const headerChildren: Paragraph[] = []
   if (settings.includeLetterhead) {
-    headerChildren.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 60 },
-        children: [
-          new TextRun({
-            text: settings.institutionName,
-            bold: true,
-            size: baseFontSizeHalfPoints + 2,
-            font: fontFamily,
-            color: '28232A',
-          }),
-        ],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 40 },
-        children: [
-          new TextRun({
-            text: settings.institutionUnit,
-            bold: true,
-            size: baseFontSizeHalfPoints,
-            font: fontFamily,
-            color: 'F04491',
-          }),
-        ],
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 120 },
-        border: {
-          bottom: {
-            color: 'F04491',
-            space: 4,
-            style: BorderStyle.SINGLE,
-            size: 12,
+    if (settings.useOfficialLetterheadImage !== false) {
+      try {
+        const headerBytes = Uint8Array.from(atob(OFFICIAL_HEADER_BASE64), (c) => c.charCodeAt(0))
+        headerChildren.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 140 },
+            children: [
+              new ImageRun({
+                data: headerBytes,
+                transformation: {
+                  width: OFFICIAL_LETTERHEAD_CONFIG.header.docxWidth,
+                  height: OFFICIAL_LETTERHEAD_CONFIG.header.docxHeight,
+                },
+                type: 'png',
+              } as any),
+            ],
+          })
+        )
+      } catch (err) {
+        console.warn('Erro ao carregar imagem oficial de cabeçalho:', err)
+      }
+    } else {
+      headerChildren.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 60 },
+          children: [
+            new TextRun({
+              text: settings.institutionName,
+              bold: true,
+              size: baseFontSizeHalfPoints + 2,
+              font: fontFamily,
+              color: '28232A',
+            }),
+          ],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 40 },
+          children: [
+            new TextRun({
+              text: settings.institutionUnit,
+              bold: true,
+              size: baseFontSizeHalfPoints,
+              font: fontFamily,
+              color: 'F04491',
+            }),
+          ],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 120 },
+          border: {
+            bottom: {
+              color: 'F04491',
+              space: 4,
+              style: BorderStyle.SINGLE,
+              size: 12,
+            },
           },
-        },
-        children: [
-          new TextRun({
-            text: `${settings.institutionAddress} • Tel: ${settings.institutionPhone} • ${settings.institutionEmail}`,
-            size: baseFontSizeHalfPoints - 4,
-            font: fontFamily,
-            color: '827780',
-          }),
-        ],
-      })
-    )
+          children: [
+            new TextRun({
+              text: `${settings.institutionAddress} • Tel: ${settings.institutionPhone} • ${settings.institutionEmail}`,
+              size: baseFontSizeHalfPoints - 4,
+              font: fontFamily,
+              color: '827780',
+            }),
+          ],
+        })
+      )
+    }
   }
 
-  // 2. Rodapé com Numeração de Página
+  // 2. Rodapé Institucional com Folha Timbrada Oficial e Numeração de Página
   const footerChildren: Paragraph[] = []
+  if (settings.includeLetterhead && settings.useOfficialLetterheadImage !== false) {
+    try {
+      const footerBytes = Uint8Array.from(atob(OFFICIAL_FOOTER_BASE64), (c) => c.charCodeAt(0))
+      footerChildren.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 80, after: 40 },
+          children: [
+            new ImageRun({
+              data: footerBytes,
+              transformation: {
+                width: OFFICIAL_LETTERHEAD_CONFIG.footer.docxWidth,
+                height: OFFICIAL_LETTERHEAD_CONFIG.footer.docxHeight,
+              },
+              type: 'png',
+            } as any),
+          ],
+        })
+      )
+    } catch (err) {
+      console.warn('Erro ao carregar imagem oficial de rodapé:', err)
+    }
+  }
+
   if (settings.includePageNumbers) {
     footerChildren.push(
       new Paragraph({
         alignment: AlignmentType.RIGHT,
-        spacing: { before: 100 },
-        border: {
-          top: {
-            color: 'E5E7EB',
-            space: 4,
-            style: BorderStyle.SINGLE,
-            size: 6,
-          },
-        },
+        spacing: { before: 40 },
         children: [
           new TextRun({
-            text: 'AssistSocial — Sistema de Gestão Socioassistencial | Página ',
+            text: 'AssistSocial — Gestão Socioassistencial | Página ',
             size: baseFontSizeHalfPoints - 5,
             font: fontFamily,
             color: '9CA3AF',

@@ -45,13 +45,18 @@ import {
   deleteUserEditorDocument,
   downloadDocxFile,
 } from '../services/documentEditorService'
+import {
+  OFFICIAL_HEADER_DATA_URL,
+  OFFICIAL_FOOTER_DATA_URL,
+} from '../services/letterheadAssets'
 import { useAuth } from '../contexts/AuthContext'
 
 interface DocumentEditorViewProps {
   onBackToDashboard?: () => void
+  onOpenTools?: () => void
 }
 
-export const DocumentEditorView: React.FC<DocumentEditorViewProps> = ({ onBackToDashboard }) => {
+export const DocumentEditorView: React.FC<DocumentEditorViewProps> = ({ onBackToDashboard, onOpenTools }) => {
   const { user } = useAuth()
 
   // Lista de rascunhos salvos
@@ -775,6 +780,58 @@ const DocumentEditorCanvas: React.FC<DocumentEditorCanvasProps> = ({
             </button>
           </div>
 
+          {/* Checkboxes de Controle de Timbrado e Visual */}
+          <div className="flex flex-wrap items-center gap-4 text-xs border-b border-pink-200/60 pb-3">
+            <label className="flex items-center gap-2 font-medium text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={doc.settings.includeLetterhead}
+                onChange={(e) => {
+                  setDoc((prev) =>
+                    prev
+                      ? { ...prev, settings: { ...prev.settings, includeLetterhead: e.target.checked } }
+                      : null
+                  )
+                  setHasUnsavedChanges(true)
+                }}
+                className="rounded text-primary focus:ring-primary"
+              />
+              Incluir Cabeçalho Timbrado
+            </label>
+            <label className="flex items-center gap-2 font-medium text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={doc.settings.useOfficialLetterheadImage !== false}
+                onChange={(e) => {
+                  setDoc((prev) =>
+                    prev
+                      ? { ...prev, settings: { ...prev.settings, useOfficialLetterheadImage: e.target.checked } }
+                      : null
+                  )
+                  setHasUnsavedChanges(true)
+                }}
+                className="rounded text-primary focus:ring-primary"
+              />
+              Usar Papel Timbrado Oficial do Ceará (Logotipos e Rodapé Oficial)
+            </label>
+            <label className="flex items-center gap-2 font-medium text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={doc.settings.includePageNumbers}
+                onChange={(e) => {
+                  setDoc((prev) =>
+                    prev
+                      ? { ...prev, settings: { ...prev.settings, includePageNumbers: e.target.checked } }
+                      : null
+                  )
+                  setHasUnsavedChanges(true)
+                }}
+                className="rounded text-primary focus:ring-primary"
+              />
+              Numeração de Página
+            </label>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
             <div>
               <label className="font-bold text-gray-700 block mb-1">Nome da Instituição (Linha 1)</label>
@@ -916,19 +973,34 @@ const DocumentEditorCanvas: React.FC<DocumentEditorCanvasProps> = ({
         >
           {/* CABEÇALHO DA FOLHA TIMBRADA VISÍVEL */}
           {doc.settings.includeLetterhead && (
-            <div className="border-b-2 border-primary pb-3 mb-8 text-center space-y-1 select-none">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-primary to-[#F58BB5] text-white flex items-center justify-center mx-auto mb-2 shadow-xs">
-                <Building2 size={24} />
-              </div>
-              <h2 className="text-sm sm:text-base font-extrabold uppercase tracking-tight text-gray-900">
-                {doc.settings.institutionName}
-              </h2>
-              <p className="text-xs sm:text-sm font-bold text-primary">
-                {doc.settings.institutionUnit}
-              </p>
-              <p className="text-[11px] text-gray-500">
-                {doc.settings.institutionAddress} • Tel: {doc.settings.institutionPhone} • {doc.settings.institutionEmail}
-              </p>
+            <div className="pb-3 mb-6 text-center space-y-2 select-none border-b border-gray-100">
+              {doc.settings.useOfficialLetterheadImage !== false ? (
+                <div className="flex flex-col items-center">
+                  <img
+                    src={OFFICIAL_HEADER_DATA_URL}
+                    alt="Papel Timbrado Oficial — Cabeçalho Institucional"
+                    className="max-h-24 sm:max-h-28 w-auto object-contain mx-auto mb-1"
+                  />
+                  <div className="text-[10px] text-gray-400 font-semibold tracking-wide uppercase">
+                    {doc.settings.institutionUnit || 'Coordenadoria de Programas Sociais'}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-[#F58BB5] text-white flex items-center justify-center mx-auto mb-2 shadow-xs">
+                    <Building2 size={20} />
+                  </div>
+                  <h2 className="text-sm font-extrabold uppercase tracking-tight text-gray-900">
+                    {doc.settings.institutionName}
+                  </h2>
+                  <p className="text-xs font-bold text-primary">
+                    {doc.settings.institutionUnit}
+                  </p>
+                  <p className="text-[11px] text-gray-500">
+                    {doc.settings.institutionAddress} • Tel: {doc.settings.institutionPhone} • {doc.settings.institutionEmail}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

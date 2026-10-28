@@ -6,6 +6,7 @@ import {
   CalendarCheck,
   Calendar,
   FileText,
+  Wrench,
   Users,
   Settings,
   HeartHandshake,
@@ -25,6 +26,7 @@ export type NavTab =
   | 'residenciais'
   | 'reports'
   | 'documents'
+  | 'tools'
   | 'services'
   | 'timeline'
   | 'team'
@@ -69,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const menuItems: { id: NavTab; label: string; icon: React.ReactNode; badge?: string }[] = [
     { id: 'dashboard', label: 'Painel Inicial', icon: <LayoutDashboard size={20} /> },
     { id: 'documents', label: 'Documentos Word', icon: <FileText size={20} />, badge: 'DOCX' },
+    { id: 'tools', label: 'Ferramentas PDF', icon: <Wrench size={20} />, badge: 'NOVO' },
     { id: 'calendar', label: 'Agenda & Visitas', icon: <Calendar size={20} /> },
     { id: 'residenciais', label: 'Residenciais', icon: <Building2 size={20} /> },
     { id: 'timeline', label: 'Linha do Tempo', icon: <GitCommit size={20} /> },

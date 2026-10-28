@@ -1,3 +1,4 @@
+import { Wrench } from 'lucide-react'
 import React, { useState, useEffect } from 'react'
 import {
   Plus,
@@ -35,6 +36,7 @@ import { ServicesDirectoryView } from '../components/ServicesDirectoryView'
 import { CaseTimelineView } from '../components/CaseTimelineView'
 import { DocumentsView } from '../components/DocumentsView'
 import { DocumentEditorView } from '../components/DocumentEditorView'
+import { ToolsView } from '../components/ToolsView'
 import { TeamView } from '../components/TeamView'
 import { ResidenciaisView } from '../components/ResidenciaisView'
 import { NotificationsPopover } from '../components/NotificationsPopover'
@@ -54,6 +56,7 @@ const ALL_NAV_PAGES: Array<{ id: NavTab; label: string; description: string; ico
   { id: 'reports', label: 'Relatórios', description: 'Geração e exportação de estudos sociais e pareceres técnicos', icon: <FileSpreadsheet size={16} /> },
   { id: 'services', label: 'Diretório de Serviços', description: 'Guia de serviços socioassistenciais do Ceará (CRAS, CREAS, etc.)', icon: <Building2 size={16} /> },
   { id: 'documents', label: 'Documentos Word', description: 'Central de criação e exportação .docx com modelos SUAS e folha timbrada', icon: <FileText size={16} /> },
+  { id: 'tools', label: 'Ferramentas PDF', description: 'Central de utilitários: juntar PDFs, converter imagens, dividir, girar e marca-d\'água', icon: <Wrench size={16} /> },
   { id: 'team', label: 'Compartilhamentos', description: 'Compartilhamento ético e colaboração intersetorial entre profissionais', icon: <Users size={16} /> },
 ]
 
@@ -722,10 +725,17 @@ export const MainDashboard: React.FC = () => {
             </ErrorBoundary>
           )}
 
+                    {/* VIEW: PDF TOOLS & UTILITIES */}
+          {currentTab === 'tools' && (
+            <ErrorBoundary fallbackTitle="Erro ao carregar Ferramentas PDF" onReset={() => setCurrentTab('dashboard')}>
+              <ToolsView onBackToDashboard={() => setCurrentTab('dashboard')} />
+            </ErrorBoundary>
+          )}
+
           {/* VIEW: DOCUMENTS & STORAGE */}
           {currentTab === 'documents' && (
             <ErrorBoundary fallbackTitle="Erro ao carregar Documentos" onReset={() => setCurrentTab('dashboard')}>
-              <DocumentEditorView onBackToDashboard={() => setCurrentTab('dashboard')} />
+              <DocumentEditorView onBackToDashboard={() => setCurrentTab('dashboard')} onOpenTools={() => setCurrentTab('tools')} />
             </ErrorBoundary>
           )}
 
