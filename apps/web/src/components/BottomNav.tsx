@@ -15,7 +15,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   onOpenNewActivity,
   onToggleMore,
 }) => {
-  const isMoreActive = ['residenciais', 'timeline', 'reports', 'services', 'documents', 'team', 'settings'].includes(currentTab)
+  const isMoreActive = ['residenciais', 'timeline', 'reports', 'services', 'documents', 'tools', 'team', 'settings'].includes(currentTab)
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 backdrop-blur-md border-t border-[#F6E4EC] shadow-[0_-4px_20px_rgba(240,68,145,0.06)] px-2 pt-1.5 pb-[max(0.6rem,env(safe-area-inset-bottom))] flex items-center justify-around">
       {/* 1. Painel Inicial */}

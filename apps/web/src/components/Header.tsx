@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               aria-label="Abrir menu de navegação"
               onClick={onToggleMobileMenu}
-              className="md:hidden w-10 h-10 rounded-2xl border border-[#F6E4EC] bg-white flex items-center justify-center text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED]/60 cursor-pointer transition-colors shrink-0 shadow-xs"
+              className="hidden md:hidden w-10 h-10 rounded-2xl border border-[#F6E4EC] bg-white items-center justify-center text-[#827780] hover:text-[#F04491] hover:bg-[#FCE5ED]/60 cursor-pointer transition-colors shrink-0 shadow-xs"
             >
               <Menu size={20} />
             </button>
